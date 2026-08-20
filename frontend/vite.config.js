@@ -4,10 +4,15 @@ import react from '@vitejs/plugin-react';
 export default defineConfig({
   plugins: [react()],
   root: '.',
+  server: {
+    proxy: {
+      '/api': 'http://localhost:3000'
+    }
+  },
   build: {
     outDir: 'dist',
     rollupOptions: {
-      input: 'demo.html'
+      input: 'index.html'
     }
   }
 });
