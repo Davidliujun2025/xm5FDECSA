@@ -47,7 +47,7 @@ test('main flow, loading state and empty data directory become ready atomically'
     assert.equal(existsSync(path.join(dataDir, expected)), true, `${expected} should exist`);
   }
   const migration = runtime.database.prepare('SELECT COUNT(*) AS count FROM schema_version').get();
-  assert.equal(migration.count, 1);
+  assert.equal(migration.count >= 2, true);
 
   const openApi = await request(runtime.app).get('/api/rag/v1/openapi.json').expect(200);
   assert.equal(openApi.body.openapi, '3.1.0');
@@ -149,5 +149,6 @@ test('valid team profile initializes without requiring topics or documents', asy
   });
   await runtime.initialize();
   assert.equal(runtime.readiness.isReady(), true);
-  assert.equal(runtime.database.prepare("SELECT COUNT(*) AS count FROM sqlite_master WHERE type = 'table' AND name IN ('topic', 'document')").get().count, 0);
+  assert.equal(runtime.database.prepare("SELECT COUNT(*) AS count FROM sqlite_master WHERE type = 'table' AND name = 'topic'").get().count, 1);
+  assert.equal(runtime.database.prepare("SELECT COUNT(*) AS count FROM sqlite_master WHERE type = 'table' AND name = 'document'").get().count, 0);
 });

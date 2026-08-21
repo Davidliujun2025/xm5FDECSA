@@ -7,10 +7,13 @@ import swaggerUi from 'swagger-ui-express';
 
 import { openSqliteDatabase } from './adapters/sqlite/database.js';
 import { acquireRuntimeLock, ensureDataDirectories } from './adapters/sqlite/runtime-lock.js';
+import { TopicRepository } from './adapters/sqlite/topic.repository.js';
 import { loadConfig } from './config.js';
 import { AppError, errorMiddleware, notFoundMiddleware } from './domain/errors.js';
 import { createAuthToolkit, createBrowserSessionRouter } from './routes/rag-v1/auth.js';
 import { createOpenApiDocument } from './routes/rag-v1/openapi.js';
+import { createTopicRouter } from './routes/rag-v1/topics.js';
+import { TopicService } from './services/topic.service.js';
 import { createLogger } from './utils/logger.js';
 import { requestContextMiddleware } from './utils/request-context.js';
 
@@ -89,6 +92,7 @@ export function createApp({ config, readiness, logger, registerRoutes } = {}) {
   });
 
   app.use('/api/rag/v1/auth', createBrowserSessionRouter({ config, auth }));
+  app.use('/api/rag/v1/topics', createTopicRouter({ auth }));
   app.get('/api/rag/v1/openapi.json', (request, response) => response.json(openApi));
   app.use('/api/rag/v1/docs', swaggerUi.serve, swaggerUi.setup(openApi, {
     customSiteTitle: '华夏智诚 RAG API'
@@ -134,6 +138,7 @@ export async function createRuntime({ env = process.env, appRoot = APP_ROOT, log
         await new Promise((resolve) => setTimeout(resolve, initializationDelayMs));
       }
       database = openSqliteDatabase(config);
+      app.locals.topicService = new TopicService(new TopicRepository(database));
       readiness.markReady();
       appLogger.info({ operation: 'runtime.initialize', result: 'ready' }, 'runtime ready');
     },
