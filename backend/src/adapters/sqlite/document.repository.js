@@ -1,3 +1,4 @@
+import { assertCanDisable, assertCanPublish } from '../../domain/documents.js';
 import { AppError } from '../../domain/errors.js';
 
 function mapDocument(row) {
@@ -106,6 +107,20 @@ export class DocumentRepository {
       listByTopic: database.prepare(`${DOCUMENT_SELECT} WHERE d.topic_id = ? ORDER BY d.created_at ASC, d.id ASC`),
       findDocument: database.prepare(`${DOCUMENT_SELECT} WHERE d.id = ?`),
       findJob: database.prepare('SELECT * FROM job WHERE id = ?'),
+      chunkMetadata: database.prepare(`
+        SELECT COUNT(*) AS count, COUNT(DISTINCT embedding_model) AS models,
+               COUNT(DISTINCT embedding_dim) AS dimensions, COUNT(DISTINCT embedding_space) AS spaces,
+               COUNT(DISTINCT parse_version) AS versions
+        FROM chunk WHERE document_id = ?
+      `),
+      publishDocument: database.prepare(`
+        UPDATE document SET status = 'PUBLISHED', published_at = ?, disabled_at = NULL, updated_at = ?
+        WHERE id = ? AND status = 'READY'
+      `),
+      disableDocument: database.prepare(`
+        UPDATE document SET status = 'DISABLED', disabled_at = ?, updated_at = ?
+        WHERE id = ? AND status = 'PUBLISHED'
+      `),
       findIdempotency: database.prepare('SELECT * FROM idempotency_record WHERE idempotency_key = ?'),
       insertIdempotency: database.prepare(`
         INSERT INTO idempotency_record(idempotency_key, operation, request_hash, response_status, response_body, created_at)
@@ -133,6 +148,44 @@ export class DocumentRepository {
 
   findJob(jobId) {
     return mapJob(this.statements.findJob.get(jobId));
+  }
+
+  publish(documentId, now = new Date()) {
+    try {
+      const document = this.findDocument(documentId);
+      if (!document) {
+        throw new AppError({ statusCode: 404, errorCode: 'RAG_DOCUMENT_NOT_FOUND', message: '文档不存在' });
+      }
+      const metadata = this.statements.chunkMetadata.get(documentId);
+      assertCanPublish(document, metadata.count);
+      if (metadata.models !== 1 || metadata.dimensions !== 1 || metadata.spaces !== 1 || metadata.versions !== 1) {
+        throw new AppError({ statusCode: 409, errorCode: 'RAG_DOCUMENT_NOT_READY', message: '文档索引元数据不一致' });
+      }
+      const timestamp = now.toISOString();
+      if (this.statements.publishDocument.run(timestamp, timestamp, documentId).changes !== 1) {
+        throw new AppError({ statusCode: 409, errorCode: 'RAG_DOCUMENT_STATE_CONFLICT', message: '文档状态已变化' });
+      }
+      return this.findDocument(documentId);
+    } catch (error) {
+      throw stableDatabaseError(error);
+    }
+  }
+
+  disable(documentId, now = new Date()) {
+    try {
+      const document = this.findDocument(documentId);
+      if (!document) {
+        throw new AppError({ statusCode: 404, errorCode: 'RAG_DOCUMENT_NOT_FOUND', message: '文档不存在' });
+      }
+      assertCanDisable(document);
+      const timestamp = now.toISOString();
+      if (this.statements.disableDocument.run(timestamp, timestamp, documentId).changes !== 1) {
+        throw new AppError({ statusCode: 409, errorCode: 'RAG_DOCUMENT_STATE_CONFLICT', message: '文档状态已变化' });
+      }
+      return this.findDocument(documentId);
+    } catch (error) {
+      throw stableDatabaseError(error);
+    }
   }
 
   createUpload({ key, operation, requestHash, document, job, responseValue, finalizeFile, rollbackFile }) {

@@ -22,6 +22,14 @@ const baseSchema = {
     MAX_FILE_MB: { type: 'integer', minimum: 1, maximum: 30 },
     MAX_TOTAL_FILES: { type: 'integer', minimum: 1, maximum: 500 },
     MAX_TOTAL_STORAGE_GB: { type: 'number', exclusiveMinimum: 0, maximum: 5 },
+    MAX_TOTAL_CHUNKS: { type: 'integer', minimum: 1, maximum: 50000 },
+    MODEL_BASE_URL: { type: 'string' },
+    MODEL_API_KEY: { type: 'string' },
+    EMBEDDING_MODEL: { type: 'string' },
+    MODEL_CONNECT_TIMEOUT_SECONDS: { type: 'integer', minimum: 1, maximum: 60 },
+    MODEL_TOTAL_TIMEOUT_SECONDS: { type: 'integer', minimum: 1, maximum: 300 },
+    CHUNK_TARGET_CHARS: { type: 'integer', minimum: 800, maximum: 1200 },
+    CHUNK_OVERLAP_CHARS: { type: 'integer', minimum: 0, maximum: 300 },
     MAX_CONCURRENT_REQUESTS: { type: 'integer', minimum: 1, maximum: 3 }
   }
 };
@@ -86,6 +94,40 @@ function parseTeamCidrs(raw) {
   return values;
 }
 
+function parseModelConfig(values) {
+  const baseUrl = values.MODEL_BASE_URL.trim();
+  const apiKey = values.MODEL_API_KEY.trim();
+  const embeddingModel = values.EMBEDDING_MODEL.trim();
+  const configuredCount = [baseUrl, apiKey, embeddingModel].filter(Boolean).length;
+  if (configuredCount !== 0 && configuredCount !== 3) {
+    failConfig('Embedding 配置必须同时提供地址、API Key 和模型 ID', {
+      fields: ['MODEL_BASE_URL', 'MODEL_API_KEY', 'EMBEDDING_MODEL']
+    });
+  }
+  if (Number(values.MODEL_CONNECT_TIMEOUT_SECONDS) > Number(values.MODEL_TOTAL_TIMEOUT_SECONDS)) {
+    failConfig('模型连接超时不得大于总超时', { field: 'MODEL_CONNECT_TIMEOUT_SECONDS' });
+  }
+  if (baseUrl) {
+    let parsed;
+    try {
+      parsed = new URL(baseUrl);
+    } catch {
+      failConfig('MODEL_BASE_URL 格式非法', { field: 'MODEL_BASE_URL' });
+    }
+    if (!['http:', 'https:'].includes(parsed.protocol) || parsed.username || parsed.password || parsed.search || parsed.hash) {
+      failConfig('MODEL_BASE_URL 必须是无凭据、查询参数和片段的 http/https 地址', { field: 'MODEL_BASE_URL' });
+    }
+  }
+  return {
+    baseUrl: baseUrl || null,
+    apiKey: apiKey || null,
+    embeddingModel: embeddingModel || null,
+    embeddingConfigured: configuredCount === 3,
+    connectTimeoutMs: Number(values.MODEL_CONNECT_TIMEOUT_SECONDS) * 1000,
+    totalTimeoutMs: Number(values.MODEL_TOTAL_TIMEOUT_SECONDS) * 1000
+  };
+}
+
 export function loadConfig(env = process.env, { appRoot = process.cwd() } = {}) {
   const values = {
     ...env,
@@ -99,6 +141,14 @@ export function loadConfig(env = process.env, { appRoot = process.cwd() } = {}) 
     MAX_FILE_MB: env.MAX_FILE_MB || '30',
     MAX_TOTAL_FILES: env.MAX_TOTAL_FILES || '500',
     MAX_TOTAL_STORAGE_GB: env.MAX_TOTAL_STORAGE_GB || '5',
+    MAX_TOTAL_CHUNKS: env.MAX_TOTAL_CHUNKS || '50000',
+    MODEL_BASE_URL: env.MODEL_BASE_URL || '',
+    MODEL_API_KEY: env.MODEL_API_KEY || '',
+    EMBEDDING_MODEL: env.EMBEDDING_MODEL || '',
+    MODEL_CONNECT_TIMEOUT_SECONDS: env.MODEL_CONNECT_TIMEOUT_SECONDS || '5',
+    MODEL_TOTAL_TIMEOUT_SECONDS: env.MODEL_TOTAL_TIMEOUT_SECONDS || '30',
+    CHUNK_TARGET_CHARS: env.CHUNK_TARGET_CHARS || '1000',
+    CHUNK_OVERLAP_CHARS: env.CHUNK_OVERLAP_CHARS || '150',
     MAX_CONCURRENT_REQUESTS: env.MAX_CONCURRENT_REQUESTS || '3'
   };
 
@@ -111,6 +161,7 @@ export function loadConfig(env = process.env, { appRoot = process.cwd() } = {}) 
   validateSecret('RAG_API_KEY', values.RAG_API_KEY);
   validateSecret('FRONTEND_SESSION_SECRET', values.FRONTEND_SESSION_SECRET);
   const corsOrigins = parseOrigins(values.CORS_ORIGINS);
+  const model = parseModelConfig(values);
   let teamAllowedCidrs = [];
 
   if (values.RUN_PROFILE === 'local' && values.RAG_HOST !== '127.0.0.1') {
@@ -151,11 +202,16 @@ export function loadConfig(env = process.env, { appRoot = process.cwd() } = {}) 
     maxFileBytes: Number(values.MAX_FILE_MB) * 1024 * 1024,
     maxTotalFiles: Number(values.MAX_TOTAL_FILES),
     maxTotalStorageBytes: Number(values.MAX_TOTAL_STORAGE_GB) * 1024 * 1024 * 1024,
+    maxTotalChunks: Number(values.MAX_TOTAL_CHUNKS),
     maxConcurrentRequests: Number(values.MAX_CONCURRENT_REQUESTS),
+    chunk: Object.freeze({
+      minChars: 800,
+      targetChars: Number(values.CHUNK_TARGET_CHARS),
+      maxChars: 1200,
+      overlapChars: Number(values.CHUNK_OVERLAP_CHARS)
+    }),
     model: Object.freeze({
-      baseUrl: values.MODEL_BASE_URL?.trim() || null,
-      apiKey: values.MODEL_API_KEY?.trim() || null,
-      embeddingModel: values.EMBEDDING_MODEL?.trim() || null,
+      ...model,
       chatModel: values.CHAT_MODEL?.trim() || null
     })
   });

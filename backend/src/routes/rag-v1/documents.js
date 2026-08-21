@@ -54,6 +54,14 @@ export function createDocumentRouter({ auth, fileStore }) {
     response.status(200).json(serviceFrom(request).listDocuments(request.query.topicId));
   }));
 
+  router.post('/:documentId/publish', auth.requireApiKey, asyncHandler(async (request, response) => {
+    response.status(200).json(serviceFrom(request).publishDocument(request.params.documentId));
+  }));
+
+  router.post('/:documentId/disable', auth.requireApiKey, asyncHandler(async (request, response) => {
+    response.status(200).json(serviceFrom(request).disableDocument(request.params.documentId));
+  }));
+
   router.get('/:documentId', auth.requireQueryAccess, asyncHandler(async (request, response) => {
     const browserSession = request.auth.type === 'browser-session';
     response.status(200).json(serviceFrom(request).getDocument(request.params.documentId, { browserSession }).response);

@@ -177,6 +177,39 @@ export function createOpenApiDocument(config) {
           }
         }
       },
+      '/api/rag/v1/documents/{documentId}/publish': {
+        post: {
+          operationId: 'publishDocument',
+          summary: '发布 READY 文档',
+          description: '仅完整索引且元数据一致的 READY 文档可进入 PUBLISHED。',
+          security: [{ BackendApiKey: [] }],
+          parameters: [{ $ref: '#/components/parameters/DocumentId' }],
+          responses: {
+            200: { description: '已发布文档', content: { 'application/json': { schema: { $ref: '#/components/schemas/Document' } } } },
+            400: { $ref: '#/components/responses/InvalidRequest' },
+            401: { $ref: '#/components/responses/Unauthorized' },
+            404: { $ref: '#/components/responses/NotFound' },
+            409: { $ref: '#/components/responses/Conflict' },
+            503: { $ref: '#/components/responses/ServiceUnavailable' }
+          }
+        }
+      },
+      '/api/rag/v1/documents/{documentId}/disable': {
+        post: {
+          operationId: 'disableDocument',
+          summary: '停用 PUBLISHED 文档',
+          security: [{ BackendApiKey: [] }],
+          parameters: [{ $ref: '#/components/parameters/DocumentId' }],
+          responses: {
+            200: { description: '已停用文档', content: { 'application/json': { schema: { $ref: '#/components/schemas/Document' } } } },
+            400: { $ref: '#/components/responses/InvalidRequest' },
+            401: { $ref: '#/components/responses/Unauthorized' },
+            404: { $ref: '#/components/responses/NotFound' },
+            409: { $ref: '#/components/responses/Conflict' },
+            503: { $ref: '#/components/responses/ServiceUnavailable' }
+          }
+        }
+      },
       '/api/rag/v1/documents/{documentId}/file': {
         get: {
           operationId: 'getDocumentFile',
@@ -311,7 +344,7 @@ export function createOpenApiDocument(config) {
         Document: {
           type: 'object',
           additionalProperties: false,
-          required: ['documentId', 'topicId', 'fileName', 'mime', 'sizeBytes', 'sha256', 'status', 'jobId', 'createdAt', 'updatedAt'],
+          required: ['documentId', 'topicId', 'fileName', 'mime', 'sizeBytes', 'sha256', 'status', 'jobId', 'parseVersion', 'createdAt', 'updatedAt', 'publishedAt', 'disabledAt'],
           properties: {
             documentId: { type: 'string', pattern: '^doc_[0-9a-f]{32}$' },
             topicId: { type: 'string', pattern: '^topic_[0-9a-f]{32}$' },
@@ -321,8 +354,11 @@ export function createOpenApiDocument(config) {
             sha256: { type: 'string', pattern: '^[0-9a-f]{64}$' },
             status: { enum: ['UPLOADED', 'PROCESSING', 'READY', 'PUBLISHED', 'DISABLED', 'FAILED'] },
             jobId: { oneOf: [{ type: 'string', pattern: '^job_[0-9a-f]{32}$' }, { type: 'null' }] },
+            parseVersion: { type: ['string', 'null'] },
             createdAt: { type: 'string' },
-            updatedAt: { type: 'string' }
+            updatedAt: { type: 'string' },
+            publishedAt: { type: ['string', 'null'] },
+            disabledAt: { type: ['string', 'null'] }
           }
         },
         Job: {

@@ -151,5 +151,5 @@ test('valid team profile initializes without requiring topics or documents', asy
   assert.equal(runtime.readiness.isReady(), true);
   assert.equal(runtime.database.prepare("SELECT COUNT(*) AS count FROM sqlite_master WHERE type = 'table' AND name = 'topic'").get().count, 1);
   assert.equal(runtime.database.prepare("SELECT COUNT(*) AS count FROM sqlite_master WHERE type = 'table' AND name = 'document'").get().count, 1);
-  assert.equal(runtime.database.prepare("SELECT COUNT(*) AS count FROM sqlite_master WHERE type = 'table' AND name = 'chunk'").get().count, 0);
+  assert.equal(runtime.database.prepare("SELECT COUNT(*) AS count FROM sqlite_master WHERE type = 'table' AND name = 'chunk'").get().count, 1);
 });

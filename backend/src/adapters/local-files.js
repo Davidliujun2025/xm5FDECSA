@@ -133,4 +133,24 @@ export class LocalFileStore {
     }
     return { stream: createReadStream(finalPath), size: fileStat.size };
   }
+
+  async readOriginalFile(relativeFilePath) {
+    const finalPath = ensureWithin(this.originalDir, path.join(this.dataDir, ...relativeFilePath.split('/')));
+    try {
+      const fileStat = await stat(finalPath);
+      if (!fileStat.isFile() || fileStat.size <= 0 || fileStat.size > this.maxFileBytes) {
+        throw new Error('invalid original file size');
+      }
+      return await readFile(finalPath);
+    } catch (error) {
+      if (error instanceof AppError) {
+        throw error;
+      }
+      throw new AppError({
+        statusCode: 500,
+        errorCode: 'RAG_FILE_STORAGE_ERROR',
+        message: '后台任务无法安全读取原文件'
+      });
+    }
+  }
 }

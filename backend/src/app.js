@@ -6,7 +6,9 @@ import express from 'express';
 import swaggerUi from 'swagger-ui-express';
 
 import { LocalFileStore } from './adapters/local-files.js';
+import { EmbeddingClient } from './adapters/models/embedding-client.js';
 import { DocumentRepository } from './adapters/sqlite/document.repository.js';
+import { IngestionRepository } from './adapters/sqlite/ingestion.repository.js';
 import { openSqliteDatabase } from './adapters/sqlite/database.js';
 import { acquireRuntimeLock, ensureDataDirectories } from './adapters/sqlite/runtime-lock.js';
 import { TopicRepository } from './adapters/sqlite/topic.repository.js';
@@ -17,9 +19,12 @@ import { createDocumentRouter, createJobRouter } from './routes/rag-v1/documents
 import { createOpenApiDocument } from './routes/rag-v1/openapi.js';
 import { createTopicRouter } from './routes/rag-v1/topics.js';
 import { DocumentService } from './services/document.service.js';
+import { IngestionService } from './services/ingestion.service.js';
 import { TopicService } from './services/topic.service.js';
 import { createLogger } from './utils/logger.js';
 import { requestContextMiddleware } from './utils/request-context.js';
+import { IngestionJobLoop } from './workers/ingestion-job-loop.js';
+import { ParserWorkerClient } from './workers/parser-worker.client.js';
 
 export const APP_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 
@@ -113,7 +118,7 @@ export function createApp({ config, readiness, fileStore, logger, registerRoutes
   return app;
 }
 
-export async function createRuntime({ env = process.env, appRoot = APP_ROOT, logger, initializationDelayMs = 0, registerRoutes } = {}) {
+export async function createRuntime({ env = process.env, appRoot = APP_ROOT, logger, initializationDelayMs = 0, registerRoutes, embeddingFetch } = {}) {
   const config = loadConfig(env, { appRoot });
   const appLogger = logger ?? createLogger(config);
   ensureDataDirectories(config.dataDir);
@@ -129,6 +134,10 @@ export async function createRuntime({ env = process.env, appRoot = APP_ROOT, log
     throw error;
   }
   let database;
+  let ingestionRepository;
+  let parserWorker;
+  let jobLoop;
+  let closePromise;
   let closed = false;
 
   return {
@@ -147,21 +156,68 @@ export async function createRuntime({ env = process.env, appRoot = APP_ROOT, log
       }
       database = openSqliteDatabase(config);
       app.locals.topicService = new TopicService(new TopicRepository(database));
-      app.locals.documentService = new DocumentService(new DocumentRepository(database, config), fileStore);
+      const documentRepository = new DocumentRepository(database, config);
+      if (config.model.embeddingConfigured) {
+        ingestionRepository = new IngestionRepository(database, config);
+        parserWorker = new ParserWorkerClient();
+        const embeddingClient = new EmbeddingClient({
+          baseUrl: config.model.baseUrl,
+          apiKey: config.model.apiKey,
+          model: config.model.embeddingModel,
+          connectTimeoutMs: config.model.connectTimeoutMs,
+          totalTimeoutMs: config.model.totalTimeoutMs,
+          fetchImpl: embeddingFetch ?? globalThis.fetch
+        });
+        const ingestionService = new IngestionService({
+          repository: ingestionRepository,
+          fileStore,
+          parserWorker,
+          embeddingClient,
+          config,
+          logger: appLogger
+        });
+        jobLoop = new IngestionJobLoop({ repository: ingestionRepository, ingestionService, logger: appLogger });
+      }
+      app.locals.documentService = new DocumentService(documentRepository, fileStore, {
+        onJobQueued: () => jobLoop?.wake()
+      });
+      jobLoop?.start();
       readiness.markReady();
       appLogger.info({ operation: 'runtime.initialize', result: 'ready' }, 'runtime ready');
     },
+    get ingestionRepository() {
+      return ingestionRepository;
+    },
+    get jobLoop() {
+      return jobLoop;
+    },
     close() {
       if (closed) {
-        return;
+        return closePromise ?? Promise.resolve();
       }
       readiness.markNotReady();
-      try {
-        database?.close();
-      } finally {
-        runtimeLock.release();
-        closed = true;
+      closed = true;
+      const finish = () => {
+        try {
+          database?.close();
+        } finally {
+          runtimeLock.release();
+        }
+      };
+      if (!jobLoop) {
+        finish();
+        closePromise = Promise.resolve();
+        return closePromise;
       }
+      closePromise = (async () => {
+        try {
+          await jobLoop.stop();
+          await parserWorker?.close();
+        } finally {
+          finish();
+        }
+      })();
+      return closePromise;
     }
   };
 }
@@ -178,14 +234,14 @@ export async function startServer(options = {}) {
     await runtime.initialize();
   } catch (error) {
     await new Promise((resolve) => server.close(resolve));
-    runtime.close();
+    await runtime.close();
     throw error;
   }
 
   const shutdown = () => {
     runtime.readiness.markNotReady();
-    server.close(() => {
-      runtime.close();
+    server.close(async () => {
+      await runtime.close();
       process.exitCode = 0;
     });
   };

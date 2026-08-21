@@ -10,7 +10,7 @@ import { APP_ROOT, createRuntime } from '../../backend/src/app.js';
 import { API_KEY, foundationEnv } from '../helpers/foundation.js';
 import { FORMAT_FIXTURES } from '../helpers/document-fixtures.js';
 
-test('OpenAPI documents five production Document/Job operations and their responses', async (t) => {
+test('OpenAPI documents seven production Document/Job operations and their responses', async (t) => {
   const dataDir = mkdtempSync(path.join(os.tmpdir(), 'rag-document-contract-'));
   const runtime = await createRuntime({ appRoot: APP_ROOT, env: foundationEnv({ DATA_DIR: dataDir }) });
   t.after(() => {
@@ -25,10 +25,12 @@ test('OpenAPI documents five production Document/Job operations and their respon
     openApi.paths['/api/rag/v1/documents'].post.operationId,
     openApi.paths['/api/rag/v1/documents'].get.operationId,
     openApi.paths['/api/rag/v1/documents/{documentId}'].get.operationId,
+    openApi.paths['/api/rag/v1/documents/{documentId}/publish'].post.operationId,
+    openApi.paths['/api/rag/v1/documents/{documentId}/disable'].post.operationId,
     openApi.paths['/api/rag/v1/documents/{documentId}/file'].get.operationId,
     openApi.paths['/api/rag/v1/jobs/{jobId}'].get.operationId
   ];
-  assert.deepEqual(operations, ['uploadDocument', 'listDocuments', 'getDocument', 'getDocumentFile', 'getJob']);
+  assert.deepEqual(operations, ['uploadDocument', 'listDocuments', 'getDocument', 'publishDocument', 'disableDocument', 'getDocumentFile', 'getJob']);
   assert.deepEqual(openApi.paths['/api/rag/v1/documents'].post.security, [{ BackendApiKey: [] }]);
   assert.deepEqual(openApi.paths['/api/rag/v1/documents/{documentId}'].get.security, [{ BackendApiKey: [] }, { BrowserSession: [] }]);
 

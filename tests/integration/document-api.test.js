@@ -92,7 +92,7 @@ test('all six formats upload through production routes and remain UPLOADED + QUE
   await api.get(`/api/rag/v1/documents/${txt.response.documentId}/file`)
     .set('Origin', 'http://localhost:5173').set('Cookie', cookie).expect(404);
 
-  assert.equal(runtime.database.prepare("SELECT COUNT(*) AS count FROM sqlite_master WHERE type = 'table' AND name = 'chunk'").get().count, 0);
+  assert.equal(runtime.database.prepare("SELECT COUNT(*) AS count FROM sqlite_master WHERE type = 'table' AND name = 'chunk'").get().count, 1);
 });
 
 test('upload enforces API Key, ACTIVE Topic, SHA-256 deduplication and idempotency', async (t) => {

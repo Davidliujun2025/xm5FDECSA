@@ -46,6 +46,35 @@ test('CORS rejects wildcards and URL paths', () => {
   );
 });
 
+test('Embedding configuration is all-or-none and constrains timeouts and chunk settings', () => {
+  assert.throws(
+    () => loadConfig(foundationEnv({ MODEL_BASE_URL: 'https://models.example.test/v1' })),
+    (error) => error.errorCode === 'RAG_CONFIG_INVALID'
+  );
+  assert.throws(
+    () => loadConfig(foundationEnv({
+      MODEL_BASE_URL: 'https://models.example.test/v1',
+      MODEL_API_KEY: 'model-key',
+      EMBEDDING_MODEL: 'embed-v1',
+      MODEL_CONNECT_TIMEOUT_SECONDS: '10',
+      MODEL_TOTAL_TIMEOUT_SECONDS: '5'
+    })),
+    (error) => error.errorCode === 'RAG_CONFIG_INVALID'
+  );
+  assert.throws(
+    () => loadConfig(foundationEnv({ CHUNK_TARGET_CHARS: '799' })),
+    (error) => error.errorCode === 'RAG_CONFIG_INVALID'
+  );
+  const config = loadConfig(foundationEnv({
+    MODEL_BASE_URL: 'https://models.example.test/v1',
+    MODEL_API_KEY: 'model-key',
+    EMBEDDING_MODEL: 'embed-v1'
+  }));
+  assert.equal(config.model.embeddingConfigured, true);
+  assert.equal(config.maxTotalChunks, 50000);
+  assert.deepEqual(config.chunk, { minChars: 800, targetChars: 1000, maxChars: 1200, overlapChars: 150 });
+});
+
 test('team profile requires default topic, private binding and allowed CIDRs', () => {
   const base = foundationEnv({
     RUN_PROFILE: 'team',

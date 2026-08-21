@@ -183,9 +183,32 @@ export function documentToResponse(document) {
     sha256: document.sha256,
     status: document.status,
     jobId: document.jobId ?? null,
+    parseVersion: document.parseVersion ?? null,
     createdAt: document.createdAt,
-    updatedAt: document.updatedAt
+    updatedAt: document.updatedAt,
+    publishedAt: document.publishedAt ?? null,
+    disabledAt: document.disabledAt ?? null
   };
+}
+
+export function assertCanPublish(document, chunkCount) {
+  if (document.status !== DOCUMENT_STATUS.READY || !Number.isSafeInteger(chunkCount) || chunkCount <= 0) {
+    throw new AppError({
+      statusCode: 409,
+      errorCode: 'RAG_DOCUMENT_NOT_READY',
+      message: '只有包含完整索引的 READY 文档可以发布'
+    });
+  }
+}
+
+export function assertCanDisable(document) {
+  if (document.status !== DOCUMENT_STATUS.PUBLISHED) {
+    throw new AppError({
+      statusCode: 409,
+      errorCode: 'RAG_DOCUMENT_STATE_CONFLICT',
+      message: '只有 PUBLISHED 文档可以停用'
+    });
+  }
 }
 
 export function jobToResponse(job) {

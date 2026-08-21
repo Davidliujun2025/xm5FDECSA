@@ -29,9 +29,10 @@ function hashRequest(value) {
 }
 
 export class DocumentService {
-  constructor(repository, fileStore) {
+  constructor(repository, fileStore, { onJobQueued } = {}) {
     this.repository = repository;
     this.fileStore = fileStore;
+    this.onJobQueued = onJobQueued;
   }
 
   async uploadDocument({ topicId, file, idempotencyKey }) {
@@ -47,7 +48,7 @@ export class DocumentService {
         status: document.status,
         jobStatus: job.status
       };
-      return this.repository.createUpload({
+      const result = this.repository.createUpload({
         key,
         operation: 'documents:upload',
         requestHash: hashRequest({
@@ -63,6 +64,10 @@ export class DocumentService {
         finalizeFile: () => this.fileStore.commitPrepared(prepared, document.filePath),
         rollbackFile: () => this.fileStore.removeCommitted(document.filePath)
       });
+      if (!result.replayed) {
+        this.onJobQueued?.();
+      }
+      return result;
     } finally {
       await this.fileStore.cleanupTemporary(prepared?.temporaryPath ?? file?.path);
     }
@@ -93,6 +98,16 @@ export class DocumentService {
       throw new AppError({ statusCode: 404, errorCode: 'RAG_JOB_NOT_FOUND', message: '任务不存在' });
     }
     return jobToResponse(job);
+  }
+
+  publishDocument(documentId) {
+    validateDocumentId(documentId);
+    return documentToResponse(this.repository.publish(documentId));
+  }
+
+  disableDocument(documentId) {
+    validateDocumentId(documentId);
+    return documentToResponse(this.repository.disable(documentId));
   }
 
   async openDocumentFile(documentId, { browserSession = false } = {}) {
