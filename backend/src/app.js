@@ -5,14 +5,18 @@ import dotenv from 'dotenv';
 import express from 'express';
 import swaggerUi from 'swagger-ui-express';
 
+import { LocalFileStore } from './adapters/local-files.js';
+import { DocumentRepository } from './adapters/sqlite/document.repository.js';
 import { openSqliteDatabase } from './adapters/sqlite/database.js';
 import { acquireRuntimeLock, ensureDataDirectories } from './adapters/sqlite/runtime-lock.js';
 import { TopicRepository } from './adapters/sqlite/topic.repository.js';
 import { loadConfig } from './config.js';
 import { AppError, errorMiddleware, notFoundMiddleware } from './domain/errors.js';
 import { createAuthToolkit, createBrowserSessionRouter } from './routes/rag-v1/auth.js';
+import { createDocumentRouter, createJobRouter } from './routes/rag-v1/documents.js';
 import { createOpenApiDocument } from './routes/rag-v1/openapi.js';
 import { createTopicRouter } from './routes/rag-v1/topics.js';
+import { DocumentService } from './services/document.service.js';
 import { TopicService } from './services/topic.service.js';
 import { createLogger } from './utils/logger.js';
 import { requestContextMiddleware } from './utils/request-context.js';
@@ -58,9 +62,9 @@ export function createReadinessState() {
   };
 }
 
-export function createApp({ config, readiness, logger, registerRoutes } = {}) {
-  if (!config || !readiness) {
-    throw new TypeError('createApp requires config and readiness');
+export function createApp({ config, readiness, fileStore, logger, registerRoutes } = {}) {
+  if (!config || !readiness || !fileStore) {
+    throw new TypeError('createApp requires config, readiness and fileStore');
   }
 
   const app = express();
@@ -93,6 +97,8 @@ export function createApp({ config, readiness, logger, registerRoutes } = {}) {
 
   app.use('/api/rag/v1/auth', createBrowserSessionRouter({ config, auth }));
   app.use('/api/rag/v1/topics', createTopicRouter({ auth }));
+  app.use('/api/rag/v1/documents', createDocumentRouter({ auth, fileStore }));
+  app.use('/api/rag/v1/jobs', createJobRouter({ auth }));
   app.get('/api/rag/v1/openapi.json', (request, response) => response.json(openApi));
   app.use('/api/rag/v1/docs', swaggerUi.serve, swaggerUi.setup(openApi, {
     customSiteTitle: '华夏智诚 RAG API'
@@ -114,8 +120,10 @@ export async function createRuntime({ env = process.env, appRoot = APP_ROOT, log
   const runtimeLock = acquireRuntimeLock(config.dataDir);
   const readiness = createReadinessState();
   let app;
+  let fileStore;
   try {
-    app = createApp({ config, readiness, logger: appLogger, registerRoutes });
+    fileStore = new LocalFileStore(config);
+    app = createApp({ config, readiness, fileStore, logger: appLogger, registerRoutes });
   } catch (error) {
     runtimeLock.release();
     throw error;
@@ -139,6 +147,7 @@ export async function createRuntime({ env = process.env, appRoot = APP_ROOT, log
       }
       database = openSqliteDatabase(config);
       app.locals.topicService = new TopicService(new TopicRepository(database));
+      app.locals.documentService = new DocumentService(new DocumentRepository(database, config), fileStore);
       readiness.markReady();
       appLogger.info({ operation: 'runtime.initialize', result: 'ready' }, 'runtime ready');
     },

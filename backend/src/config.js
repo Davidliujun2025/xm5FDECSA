@@ -19,6 +19,9 @@ const baseSchema = {
     FRONTEND_SESSION_TTL_SECONDS: { type: 'integer', minimum: 60, maximum: 14400 },
     CORS_ORIGINS: { type: 'string', minLength: 1 },
     DATA_DIR: { type: 'string', minLength: 1 },
+    MAX_FILE_MB: { type: 'integer', minimum: 1, maximum: 30 },
+    MAX_TOTAL_FILES: { type: 'integer', minimum: 1, maximum: 500 },
+    MAX_TOTAL_STORAGE_GB: { type: 'number', exclusiveMinimum: 0, maximum: 5 },
     MAX_CONCURRENT_REQUESTS: { type: 'integer', minimum: 1, maximum: 3 }
   }
 };
@@ -93,6 +96,9 @@ export function loadConfig(env = process.env, { appRoot = process.cwd() } = {}) 
     FRONTEND_SESSION_TTL_SECONDS: env.FRONTEND_SESSION_TTL_SECONDS || '3600',
     CORS_ORIGINS: env.CORS_ORIGINS || 'http://localhost:5173',
     DATA_DIR: env.DATA_DIR || './data',
+    MAX_FILE_MB: env.MAX_FILE_MB || '30',
+    MAX_TOTAL_FILES: env.MAX_TOTAL_FILES || '500',
+    MAX_TOTAL_STORAGE_GB: env.MAX_TOTAL_STORAGE_GB || '5',
     MAX_CONCURRENT_REQUESTS: env.MAX_CONCURRENT_REQUESTS || '3'
   };
 
@@ -142,6 +148,9 @@ export function loadConfig(env = process.env, { appRoot = process.cwd() } = {}) 
     teamAllowedCidrs,
     dataDir: path.resolve(appRoot, values.DATA_DIR),
     migrationsDir: path.resolve(appRoot, 'database/migrations'),
+    maxFileBytes: Number(values.MAX_FILE_MB) * 1024 * 1024,
+    maxTotalFiles: Number(values.MAX_TOTAL_FILES),
+    maxTotalStorageBytes: Number(values.MAX_TOTAL_STORAGE_GB) * 1024 * 1024 * 1024,
     maxConcurrentRequests: Number(values.MAX_CONCURRENT_REQUESTS),
     model: Object.freeze({
       baseUrl: values.MODEL_BASE_URL?.trim() || null,

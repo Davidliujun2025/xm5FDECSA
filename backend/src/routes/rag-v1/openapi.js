@@ -103,6 +103,110 @@ export function createOpenApiDocument(config) {
             503: { $ref: '#/components/responses/ServiceUnavailable' }
           }
         }
+      },
+      '/api/rag/v1/documents': {
+        post: {
+          operationId: 'uploadDocument',
+          summary: '上传单个文档并创建 QUEUED 任务',
+          security: [{ BackendApiKey: [] }],
+          parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }],
+          requestBody: {
+            required: true,
+            content: {
+              'multipart/form-data': {
+                schema: {
+                  type: 'object',
+                  additionalProperties: false,
+                  required: ['topicId', 'file'],
+                  properties: {
+                    topicId: { type: 'string', pattern: '^topic_[0-9a-f]{32}$' },
+                    file: { type: 'string', format: 'binary' }
+                  }
+                }
+              }
+            }
+          },
+          responses: {
+            202: {
+              description: '原文件已安全保存，文档为 UPLOADED，任务为 QUEUED',
+              headers: { 'Idempotency-Replayed': { schema: { type: 'string', enum: ['true', 'false'] } } },
+              content: { 'application/json': { schema: { $ref: '#/components/schemas/UploadDocumentResponse' } } }
+            },
+            400: { $ref: '#/components/responses/InvalidRequest' },
+            401: { $ref: '#/components/responses/Unauthorized' },
+            409: { $ref: '#/components/responses/Conflict' },
+            413: { $ref: '#/components/responses/PayloadTooLarge' },
+            422: { $ref: '#/components/responses/UnprocessableFile' },
+            503: { $ref: '#/components/responses/ServiceUnavailable' }
+          }
+        },
+        get: {
+          operationId: 'listDocuments',
+          summary: '按 Topic 查询文档',
+          security: [{ BackendApiKey: [] }],
+          parameters: [{
+            name: 'topicId',
+            in: 'query',
+            required: true,
+            schema: { type: 'string', pattern: '^topic_[0-9a-f]{32}$' }
+          }],
+          responses: {
+            200: {
+              description: '文档数组',
+              content: { 'application/json': { schema: { type: 'array', items: { $ref: '#/components/schemas/Document' } } } }
+            },
+            400: { $ref: '#/components/responses/InvalidRequest' },
+            401: { $ref: '#/components/responses/Unauthorized' },
+            404: { $ref: '#/components/responses/NotFound' },
+            503: { $ref: '#/components/responses/ServiceUnavailable' }
+          }
+        }
+      },
+      '/api/rag/v1/documents/{documentId}': {
+        get: {
+          operationId: 'getDocument',
+          summary: '查询文档与任务状态',
+          security: [{ BackendApiKey: [] }, { BrowserSession: [] }],
+          parameters: [{ $ref: '#/components/parameters/DocumentId' }],
+          responses: {
+            200: { description: '文档详情', content: { 'application/json': { schema: { $ref: '#/components/schemas/Document' } } } },
+            400: { $ref: '#/components/responses/InvalidRequest' },
+            401: { $ref: '#/components/responses/Unauthorized' },
+            404: { $ref: '#/components/responses/NotFound' },
+            503: { $ref: '#/components/responses/ServiceUnavailable' }
+          }
+        }
+      },
+      '/api/rag/v1/documents/{documentId}/file': {
+        get: {
+          operationId: 'getDocumentFile',
+          summary: '受控读取原文件',
+          description: '浏览器查询会话不得读取尚未发布的文档。',
+          security: [{ BackendApiKey: [] }, { BrowserSession: [] }],
+          parameters: [{ $ref: '#/components/parameters/DocumentId' }],
+          responses: {
+            200: { description: '原文件二进制流', content: { 'application/octet-stream': { schema: { type: 'string', format: 'binary' } } } },
+            400: { $ref: '#/components/responses/InvalidRequest' },
+            401: { $ref: '#/components/responses/Unauthorized' },
+            404: { $ref: '#/components/responses/NotFound' },
+            503: { $ref: '#/components/responses/ServiceUnavailable' }
+          }
+        }
+      },
+      '/api/rag/v1/jobs/{jobId}': {
+        get: {
+          operationId: 'getJob',
+          summary: '查询文档任务',
+          security: [{ BackendApiKey: [] }],
+          parameters: [{ $ref: '#/components/parameters/JobId' }],
+          responses: {
+            200: { description: '任务详情', content: { 'application/json': { schema: { $ref: '#/components/schemas/Job' } } } },
+            400: { $ref: '#/components/responses/InvalidRequest' },
+            401: { $ref: '#/components/responses/Unauthorized' },
+            404: { $ref: '#/components/responses/NotFound' },
+            503: { $ref: '#/components/responses/ServiceUnavailable' }
+          }
+        }
       }
     },
     components: {
@@ -116,6 +220,18 @@ export function createOpenApiDocument(config) {
           in: 'header',
           required: true,
           schema: { type: 'string', minLength: 8, maxLength: 128, pattern: '^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$' }
+        },
+        DocumentId: {
+          name: 'documentId',
+          in: 'path',
+          required: true,
+          schema: { type: 'string', pattern: '^doc_[0-9a-f]{32}$' }
+        },
+        JobId: {
+          name: 'jobId',
+          in: 'path',
+          required: true,
+          schema: { type: 'string', pattern: '^job_[0-9a-f]{32}$' }
         }
       },
       responses: {
@@ -133,6 +249,18 @@ export function createOpenApiDocument(config) {
         },
         ServiceUnavailable: {
           description: '初始化中或 SQLite 暂时繁忙',
+          content: { 'application/json': { schema: { $ref: '#/components/schemas/Error' } } }
+        },
+        NotFound: {
+          description: '资源不存在或不可访问',
+          content: { 'application/json': { schema: { $ref: '#/components/schemas/Error' } } }
+        },
+        PayloadTooLarge: {
+          description: '单文件超过配置上限（最高 30MB）',
+          content: { 'application/json': { schema: { $ref: '#/components/schemas/Error' } } }
+        },
+        UnprocessableFile: {
+          description: '格式、MIME、文件头、编码或内容非法',
           content: { 'application/json': { schema: { $ref: '#/components/schemas/Error' } } }
         }
       },
@@ -167,6 +295,52 @@ export function createOpenApiDocument(config) {
             name: { type: 'string', minLength: 1, maxLength: 100 },
             description: { type: 'string', maxLength: 1000 },
             status: { enum: ['DRAFT', 'ACTIVE', 'DISABLED'] }
+          }
+        },
+        UploadDocumentResponse: {
+          type: 'object',
+          additionalProperties: false,
+          required: ['documentId', 'jobId', 'status', 'jobStatus'],
+          properties: {
+            documentId: { type: 'string', pattern: '^doc_[0-9a-f]{32}$' },
+            jobId: { type: 'string', pattern: '^job_[0-9a-f]{32}$' },
+            status: { const: 'UPLOADED' },
+            jobStatus: { const: 'QUEUED' }
+          }
+        },
+        Document: {
+          type: 'object',
+          additionalProperties: false,
+          required: ['documentId', 'topicId', 'fileName', 'mime', 'sizeBytes', 'sha256', 'status', 'jobId', 'createdAt', 'updatedAt'],
+          properties: {
+            documentId: { type: 'string', pattern: '^doc_[0-9a-f]{32}$' },
+            topicId: { type: 'string', pattern: '^topic_[0-9a-f]{32}$' },
+            fileName: { type: 'string', minLength: 1, maxLength: 255 },
+            mime: { type: 'string' },
+            sizeBytes: { type: 'integer', minimum: 1 },
+            sha256: { type: 'string', pattern: '^[0-9a-f]{64}$' },
+            status: { enum: ['UPLOADED', 'PROCESSING', 'READY', 'PUBLISHED', 'DISABLED', 'FAILED'] },
+            jobId: { oneOf: [{ type: 'string', pattern: '^job_[0-9a-f]{32}$' }, { type: 'null' }] },
+            createdAt: { type: 'string' },
+            updatedAt: { type: 'string' }
+          }
+        },
+        Job: {
+          type: 'object',
+          additionalProperties: false,
+          required: ['jobId', 'documentId', 'type', 'status', 'stage', 'attemptCount', 'errorCode', 'errorMessage', 'createdAt', 'startedAt', 'finishedAt'],
+          properties: {
+            jobId: { type: 'string', pattern: '^job_[0-9a-f]{32}$' },
+            documentId: { type: 'string', pattern: '^doc_[0-9a-f]{32}$' },
+            type: { const: 'INGEST_DOCUMENT' },
+            status: { enum: ['QUEUED', 'PROCESSING', 'SUCCEEDED', 'FAILED'] },
+            stage: { type: 'string' },
+            attemptCount: { type: 'integer', minimum: 0 },
+            errorCode: { type: ['string', 'null'] },
+            errorMessage: { type: ['string', 'null'] },
+            createdAt: { type: 'string' },
+            startedAt: { type: ['string', 'null'] },
+            finishedAt: { type: ['string', 'null'] }
           }
         },
         Error: {
