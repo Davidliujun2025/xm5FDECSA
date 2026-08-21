@@ -1,4 +1,5 @@
 import { Fragment, useEffect } from 'react';
+import BotAvatar from './BotAvatar';
 
 function renderMessageContent(content) {
   if (!content.includes('**')) {
@@ -33,7 +34,7 @@ export default function MessageList({ messages, isTyping, listRef }) {
       {messages.map((message) => (
         <div className={`message-row ${message.role}`} key={message.id}>
           {message.role === 'bot' && (
-            <div className="bot-avatar message-avatar" aria-hidden="true">智</div>
+            <BotAvatar className="bot-avatar message-avatar" />
           )}
           <div className="message-content">
             <div className="message-meta">
@@ -46,7 +47,7 @@ export default function MessageList({ messages, isTyping, listRef }) {
 
       {isTyping && (
         <div className="message-row bot">
-          <div className="bot-avatar message-avatar" aria-hidden="true">智</div>
+          <BotAvatar className="bot-avatar message-avatar" />
           <div className="message-content">
             <div className="message-bubble typing-bubble" aria-label="正在输入">
               <span className="typing-dot" />

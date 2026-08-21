@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react';
+import BotAvatar from './BotAvatar';
 import MessageList from './MessageList';
 import InputBar from './InputBar';
 
@@ -127,9 +128,9 @@ export default function ChatBot() {
   return (
     <main className="chat-page">
       <div className="chat-widget">
-      <header className="chat-header">
-        <div className="bot-avatar" aria-hidden="true">智</div>
-        <div className="header-copy">
+        <header className="chat-header">
+          <BotAvatar />
+          <div className="header-copy">
           <div className="header-title">{BOT_NAME}</div>
           <div className="header-subtitle">
             <span className="status-dot" aria-hidden="true" />
