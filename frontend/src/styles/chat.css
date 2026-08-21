@@ -182,6 +182,43 @@ body {
   border-radius: 14px 4px 14px 14px;
 }
 
+.welcome-message {
+  white-space: normal;
+}
+
+.welcome-message p {
+  margin: 0 0 8px;
+}
+
+.welcome-message p:last-child {
+  margin-bottom: 0;
+}
+
+.welcome-items {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 10px 0;
+}
+
+.welcome-item {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  gap: 8px;
+  align-items: start;
+}
+
+.welcome-icon {
+  width: 28px;
+  line-height: 1.75;
+  text-align: center;
+}
+
+.welcome-item-text {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
 .typing-bubble {
   display: flex;
   align-items: center;

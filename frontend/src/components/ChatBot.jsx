@@ -17,12 +17,13 @@ const WELCOME_MESSAGE = `您好，欢迎来到华夏智诚项目管理学院！�
 
 let messageSequence = 0;
 
-function createMessage(role, content) {
+function createMessage(role, content, kind = 'text') {
   messageSequence += 1;
   return {
     id: `msg-${Date.now()}-${messageSequence}`,
     role,
     content,
+    kind,
     timestamp: new Date().toISOString()
   };
 }
@@ -66,7 +67,7 @@ function getDemoReply(question) {
 }
 
 export default function ChatBot() {
-  const [messages, setMessages] = useState(() => [createMessage('bot', WELCOME_MESSAGE)]);
+  const [messages, setMessages] = useState(() => [createMessage('bot', WELCOME_MESSAGE, 'welcome')]);
   const [isTyping, setIsTyping] = useState(false);
   const [isClosed, setIsClosed] = useState(false);
   const [conversationId, setConversationId] = useState('');

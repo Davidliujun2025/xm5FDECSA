@@ -1,5 +1,6 @@
 import { Fragment, useEffect } from 'react';
 import BotAvatar from './BotAvatar';
+import WelcomeMessage from './WelcomeMessage';
 
 function renderMessageContent(content) {
   if (!content.includes('**')) {
@@ -40,7 +41,11 @@ export default function MessageList({ messages, isTyping, listRef }) {
             <div className="message-meta">
               {message.role === 'bot' ? '智能小助手' : '我'} · {formatTime(message.timestamp)}
             </div>
-            <div className="message-bubble">{renderMessageContent(message.content)}</div>
+            <div className="message-bubble">
+              {message.kind === 'welcome'
+                ? <WelcomeMessage />
+                : renderMessageContent(message.content)}
+            </div>
           </div>
         </div>
       ))}
