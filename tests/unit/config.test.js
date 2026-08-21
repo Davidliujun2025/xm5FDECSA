@@ -65,6 +65,14 @@ test('Embedding configuration is all-or-none and constrains timeouts and chunk s
     () => loadConfig(foundationEnv({ CHUNK_TARGET_CHARS: '799' })),
     (error) => error.errorCode === 'RAG_CONFIG_INVALID'
   );
+  assert.throws(
+    () => loadConfig(foundationEnv({ RETRIEVAL_CANDIDATES: '11' })),
+    (error) => error.errorCode === 'RAG_CONFIG_INVALID'
+  );
+  assert.throws(
+    () => loadConfig(foundationEnv({ EVIDENCE_THRESHOLD: '1.1' })),
+    (error) => error.errorCode === 'RAG_CONFIG_INVALID'
+  );
   const config = loadConfig(foundationEnv({
     MODEL_BASE_URL: 'https://models.example.test/v1',
     MODEL_API_KEY: 'model-key',
@@ -72,6 +80,9 @@ test('Embedding configuration is all-or-none and constrains timeouts and chunk s
   }));
   assert.equal(config.model.embeddingConfigured, true);
   assert.equal(config.maxTotalChunks, 50000);
+  assert.equal(config.retrievalCandidates, 10);
+  assert.equal(config.answerContextLimit, 5);
+  assert.equal(config.evidenceThreshold, 0.45);
   assert.deepEqual(config.chunk, { minChars: 800, targetChars: 1000, maxChars: 1200, overlapChars: 150 });
 });
 

@@ -240,6 +240,28 @@ export function createOpenApiDocument(config) {
             503: { $ref: '#/components/responses/ServiceUnavailable' }
           }
         }
+      },
+      '/api/rag/v1/search': {
+        post: {
+          operationId: 'searchTopic',
+          summary: '在指定 Topic 内检索 citation 候选',
+          description: '仅返回 ACTIVE Topic 中 PUBLISHED 文档的证据候选，不代表企业最终答案。',
+          security: [{ BackendApiKey: [] }, { BrowserSession: [] }],
+          requestBody: {
+            required: true,
+            content: { 'application/json': { schema: { $ref: '#/components/schemas/SearchRequest' } } }
+          },
+          responses: {
+            200: { description: '按余弦分数排序的 citation 候选', content: { 'application/json': { schema: { $ref: '#/components/schemas/SearchResponse' } } } },
+            400: { $ref: '#/components/responses/InvalidRequest' },
+            401: { $ref: '#/components/responses/Unauthorized' },
+            404: { $ref: '#/components/responses/NotFound' },
+            409: { $ref: '#/components/responses/Conflict' },
+            422: { $ref: '#/components/responses/UnprocessableFile' },
+            429: { $ref: '#/components/responses/TooManyRequests' },
+            503: { $ref: '#/components/responses/ServiceUnavailable' }
+          }
+        }
       }
     },
     components: {
@@ -294,6 +316,10 @@ export function createOpenApiDocument(config) {
         },
         UnprocessableFile: {
           description: '格式、MIME、文件头、编码或内容非法',
+          content: { 'application/json': { schema: { $ref: '#/components/schemas/Error' } } }
+        },
+        TooManyRequests: {
+          description: '请求并发或频率达到上限',
           content: { 'application/json': { schema: { $ref: '#/components/schemas/Error' } } }
         }
       },
@@ -377,6 +403,38 @@ export function createOpenApiDocument(config) {
             createdAt: { type: 'string' },
             startedAt: { type: ['string', 'null'] },
             finishedAt: { type: ['string', 'null'] }
+          }
+        },
+        SearchRequest: {
+          type: 'object',
+          additionalProperties: false,
+          required: ['topicId', 'question'],
+          properties: {
+            topicId: { type: 'string', pattern: '^topic_[0-9a-f]{32}$' },
+            question: { type: 'string', minLength: 1, maxLength: 4000 },
+            limit: { type: 'integer', minimum: 1, maximum: 10, default: config.answerContextLimit }
+          }
+        },
+        CitationCandidate: {
+          type: 'object',
+          additionalProperties: false,
+          required: ['citationId', 'documentId', 'fileName', 'location', 'excerpt', 'score'],
+          properties: {
+            citationId: { type: 'string' },
+            documentId: { type: 'string', pattern: '^doc_[0-9a-f]{32}$' },
+            fileName: { type: 'string' },
+            location: { type: 'object' },
+            excerpt: { type: 'string' },
+            score: { type: 'number', minimum: -1, maximum: 1 }
+          }
+        },
+        SearchResponse: {
+          type: 'object',
+          additionalProperties: false,
+          required: ['topicId', 'results'],
+          properties: {
+            topicId: { type: 'string', pattern: '^topic_[0-9a-f]{32}$' },
+            results: { type: 'array', maxItems: 10, items: { $ref: '#/components/schemas/CitationCandidate' } }
           }
         },
         Error: {

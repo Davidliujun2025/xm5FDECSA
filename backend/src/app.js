@@ -9,6 +9,7 @@ import { LocalFileStore } from './adapters/local-files.js';
 import { EmbeddingClient } from './adapters/models/embedding-client.js';
 import { DocumentRepository } from './adapters/sqlite/document.repository.js';
 import { IngestionRepository } from './adapters/sqlite/ingestion.repository.js';
+import { RetrievalRepository } from './adapters/sqlite/retrieval.repository.js';
 import { openSqliteDatabase } from './adapters/sqlite/database.js';
 import { acquireRuntimeLock, ensureDataDirectories } from './adapters/sqlite/runtime-lock.js';
 import { TopicRepository } from './adapters/sqlite/topic.repository.js';
@@ -17,9 +18,11 @@ import { AppError, errorMiddleware, notFoundMiddleware } from './domain/errors.j
 import { createAuthToolkit, createBrowserSessionRouter } from './routes/rag-v1/auth.js';
 import { createDocumentRouter, createJobRouter } from './routes/rag-v1/documents.js';
 import { createOpenApiDocument } from './routes/rag-v1/openapi.js';
+import { createSearchRouter } from './routes/rag-v1/search.js';
 import { createTopicRouter } from './routes/rag-v1/topics.js';
 import { DocumentService } from './services/document.service.js';
 import { IngestionService } from './services/ingestion.service.js';
+import { RetrievalService } from './services/retrieval.service.js';
 import { TopicService } from './services/topic.service.js';
 import { createLogger } from './utils/logger.js';
 import { requestContextMiddleware } from './utils/request-context.js';
@@ -104,6 +107,7 @@ export function createApp({ config, readiness, fileStore, logger, registerRoutes
   app.use('/api/rag/v1/topics', createTopicRouter({ auth }));
   app.use('/api/rag/v1/documents', createDocumentRouter({ auth, fileStore }));
   app.use('/api/rag/v1/jobs', createJobRouter({ auth }));
+  app.use('/api/rag/v1/search', createSearchRouter({ auth, config }));
   app.get('/api/rag/v1/openapi.json', (request, response) => response.json(openApi));
   app.use('/api/rag/v1/docs', swaggerUi.serve, swaggerUi.setup(openApi, {
     customSiteTitle: '华夏智诚 RAG API'
@@ -135,6 +139,8 @@ export async function createRuntime({ env = process.env, appRoot = APP_ROOT, log
   }
   let database;
   let ingestionRepository;
+  let retrievalRepository;
+  let embeddingClient;
   let parserWorker;
   let jobLoop;
   let closePromise;
@@ -160,7 +166,7 @@ export async function createRuntime({ env = process.env, appRoot = APP_ROOT, log
       if (config.model.embeddingConfigured) {
         ingestionRepository = new IngestionRepository(database, config);
         parserWorker = new ParserWorkerClient();
-        const embeddingClient = new EmbeddingClient({
+        embeddingClient = new EmbeddingClient({
           baseUrl: config.model.baseUrl,
           apiKey: config.model.apiKey,
           model: config.model.embeddingModel,
@@ -177,6 +183,12 @@ export async function createRuntime({ env = process.env, appRoot = APP_ROOT, log
           logger: appLogger
         });
         jobLoop = new IngestionJobLoop({ repository: ingestionRepository, ingestionService, logger: appLogger });
+        retrievalRepository = new RetrievalRepository(database);
+        app.locals.retrievalService = new RetrievalService({
+          repository: retrievalRepository,
+          embeddingClient,
+          config
+        });
       }
       app.locals.documentService = new DocumentService(documentRepository, fileStore, {
         onJobQueued: () => jobLoop?.wake()
@@ -190,6 +202,9 @@ export async function createRuntime({ env = process.env, appRoot = APP_ROOT, log
     },
     get jobLoop() {
       return jobLoop;
+    },
+    get retrievalRepository() {
+      return retrievalRepository;
     },
     close() {
       if (closed) {

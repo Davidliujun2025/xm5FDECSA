@@ -117,4 +117,14 @@ export class EmbeddingClient {
       clearTimeout(totalTimer);
     }
   }
+
+  async embedQuery(question) {
+    const embedded = await this.embed([question]);
+    return Object.freeze({
+      vector: embedded.vectors[0],
+      model: embedded.model,
+      dimension: embedded.dimension,
+      space: embedded.space
+    });
+  }
 }

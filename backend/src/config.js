@@ -30,6 +30,9 @@ const baseSchema = {
     MODEL_TOTAL_TIMEOUT_SECONDS: { type: 'integer', minimum: 1, maximum: 300 },
     CHUNK_TARGET_CHARS: { type: 'integer', minimum: 800, maximum: 1200 },
     CHUNK_OVERLAP_CHARS: { type: 'integer', minimum: 0, maximum: 300 },
+    RETRIEVAL_CANDIDATES: { type: 'integer', minimum: 1, maximum: 10 },
+    ANSWER_CONTEXT_LIMIT: { type: 'integer', minimum: 1, maximum: 5 },
+    EVIDENCE_THRESHOLD: { type: 'number', minimum: 0, maximum: 1 },
     MAX_CONCURRENT_REQUESTS: { type: 'integer', minimum: 1, maximum: 3 }
   }
 };
@@ -149,6 +152,9 @@ export function loadConfig(env = process.env, { appRoot = process.cwd() } = {}) 
     MODEL_TOTAL_TIMEOUT_SECONDS: env.MODEL_TOTAL_TIMEOUT_SECONDS || '30',
     CHUNK_TARGET_CHARS: env.CHUNK_TARGET_CHARS || '1000',
     CHUNK_OVERLAP_CHARS: env.CHUNK_OVERLAP_CHARS || '150',
+    RETRIEVAL_CANDIDATES: env.RETRIEVAL_CANDIDATES || '10',
+    ANSWER_CONTEXT_LIMIT: env.ANSWER_CONTEXT_LIMIT || '5',
+    EVIDENCE_THRESHOLD: env.EVIDENCE_THRESHOLD || '0.45',
     MAX_CONCURRENT_REQUESTS: env.MAX_CONCURRENT_REQUESTS || '3'
   };
 
@@ -204,6 +210,9 @@ export function loadConfig(env = process.env, { appRoot = process.cwd() } = {}) 
     maxTotalStorageBytes: Number(values.MAX_TOTAL_STORAGE_GB) * 1024 * 1024 * 1024,
     maxTotalChunks: Number(values.MAX_TOTAL_CHUNKS),
     maxConcurrentRequests: Number(values.MAX_CONCURRENT_REQUESTS),
+    retrievalCandidates: Number(values.RETRIEVAL_CANDIDATES),
+    answerContextLimit: Number(values.ANSWER_CONTEXT_LIMIT),
+    evidenceThreshold: Number(values.EVIDENCE_THRESHOLD),
     chunk: Object.freeze({
       minChars: 800,
       targetChars: Number(values.CHUNK_TARGET_CHARS),
