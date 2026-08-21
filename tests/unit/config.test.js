@@ -1,0 +1,79 @@
+import assert from 'node:assert/strict';
+import { test } from 'node:test';
+
+import { loadConfig } from '../../backend/src/config.js';
+import { foundationEnv } from '../helpers/foundation.js';
+
+test('local profile is constrained to loopback and resolves portable paths', () => {
+  const config = loadConfig(foundationEnv(), { appRoot: 'C:\\portable-app' });
+  assert.equal(config.profile, 'local');
+  assert.equal(config.host, '127.0.0.1');
+  assert.match(config.dataDir, /portable-app[\\/]data$/);
+  assert.deepEqual(config.corsOrigins, ['http://localhost:5173']);
+  assert.equal(config.model.apiKey, null);
+});
+
+test('local profile rejects non-loopback listening', () => {
+  assert.throws(
+    () => loadConfig(foundationEnv({ RAG_HOST: '0.0.0.0' })),
+    (error) => error.errorCode === 'RAG_CONFIG_INVALID' && !error.message.includes('api_A1')
+  );
+});
+
+test('configuration rejects missing or weak secrets and excessive session TTL', () => {
+  assert.throws(
+    () => loadConfig(foundationEnv({ RAG_API_KEY: '' })),
+    (error) => error.errorCode === 'RAG_CONFIG_INVALID'
+  );
+  assert.throws(
+    () => loadConfig(foundationEnv({ FRONTEND_SESSION_SECRET: 'change-me-change-me-change-me-change-me' })),
+    (error) => error.errorCode === 'RAG_CONFIG_INVALID'
+  );
+  assert.throws(
+    () => loadConfig(foundationEnv({ FRONTEND_SESSION_TTL_SECONDS: '14401' })),
+    (error) => error.errorCode === 'RAG_CONFIG_INVALID'
+  );
+});
+
+test('CORS rejects wildcards and URL paths', () => {
+  assert.throws(
+    () => loadConfig(foundationEnv({ CORS_ORIGINS: '*' })),
+    (error) => error.errorCode === 'RAG_CONFIG_INVALID'
+  );
+  assert.throws(
+    () => loadConfig(foundationEnv({ CORS_ORIGINS: 'https://example.test/path' })),
+    (error) => error.errorCode === 'RAG_CONFIG_INVALID'
+  );
+});
+
+test('team profile requires default topic, private binding and allowed CIDRs', () => {
+  const base = foundationEnv({
+    RUN_PROFILE: 'team',
+    RAG_HOST: '0.0.0.0',
+    CORS_ORIGINS: 'http://192.168.10.20:5173'
+  });
+  assert.throws(
+    () => loadConfig(base),
+    (error) => error.errorCode === 'RAG_CONFIG_INVALID' && error.details.field === 'FRONTEND_DEFAULT_TOPIC_ID'
+  );
+  assert.throws(
+    () => loadConfig({ ...base, RAG_HOST: '', FRONTEND_DEFAULT_TOPIC_ID: 'topic_default', TEAM_ALLOWED_CIDRS: '10.0.0.0/8' }),
+    (error) => error.errorCode === 'RAG_CONFIG_INVALID' && error.details.field === 'RAG_HOST'
+  );
+  assert.throws(
+    () => loadConfig({ ...base, CORS_ORIGINS: '', FRONTEND_DEFAULT_TOPIC_ID: 'topic_default', TEAM_ALLOWED_CIDRS: '10.0.0.0/8' }),
+    (error) => error.errorCode === 'RAG_CONFIG_INVALID' && error.details.field === 'CORS_ORIGINS'
+  );
+  assert.throws(
+    () => loadConfig({ ...base, FRONTEND_DEFAULT_TOPIC_ID: 'topic_default', TEAM_ALLOWED_CIDRS: '8.8.8.0/24' }),
+    (error) => error.errorCode === 'RAG_CONFIG_INVALID' && error.details.field === 'TEAM_ALLOWED_CIDRS'
+  );
+
+  const config = loadConfig({
+    ...base,
+    FRONTEND_DEFAULT_TOPIC_ID: 'topic_default',
+    TEAM_ALLOWED_CIDRS: '192.168.10.0/24,10.0.0.0/8'
+  });
+  assert.equal(config.profile, 'team');
+  assert.deepEqual(config.teamAllowedCidrs, ['192.168.10.0/24', '10.0.0.0/8']);
+});

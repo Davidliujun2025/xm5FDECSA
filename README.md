@@ -1,15 +1,37 @@
-# bot-rag
+# 华夏智诚可移植知识库 API
 
-RAG chatbot workspace with an Express backend, React frontend, PostgreSQL/pgvector persistence, and Docker-based local development.
+本仓库使用 Node.js 24、Express、React/Vite 和内置 `node:sqlite`。MVP 运行时是单个 Node/Express 进程；SQLite 与原文件位于可配置的本地 `DATA_DIR`。Docker、PostgreSQL/pgvector、RAGFlow 和独立 Worker 不在启动或验证主路径中。
 
-## Quick start
+## 环境要求
 
-```bash
-cp .env.example .env
-npm install
-npm run dev
+- Windows 10/11 x64
+- Node.js 24.x 与 npm 11.x
+- 服务只允许 local 回环或受控 team 局域网运行，不得公开到互联网
+
+## 首次启动
+
+```powershell
+npm ci
+Copy-Item .env.example .env
+# 在 .env 中填写至少 32 字节的随机 RAG_API_KEY 与 FRONTEND_SESSION_SECRET
+.\scripts\start-local.ps1
 ```
 
-The API runs on `http://localhost:3000`. Start the frontend separately with `npm run dev --workspace frontend`.
+local profile 固定监听 `127.0.0.1:3000`。健康检查为 `/health/live` 和 `/health/ready`；OpenAPI 3.1 与 Swagger UI 分别位于 `/api/rag/v1/openapi.json`、`/api/rag/v1/docs`。
 
-See [docs/API.md](docs/API.md), [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md), and [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the project contracts and operational notes.
+team profile 还必须明确设置 `RAG_HOST`、`CORS_ORIGINS`、`FRONTEND_DEFAULT_TOPIC_ID` 和仅含私有 IPv4 网段的 `TEAM_ALLOWED_CIDRS`，再执行：
+
+```powershell
+.\scripts\start-team.ps1
+```
+
+启动脚本不会修改 Windows 防火墙。服务主机维护者必须把入站规则限制在专用网络与 `TEAM_ALLOWED_CIDRS`，并确保没有路由器端口转发或公网 tunnel。
+
+## 开发与验证
+
+```powershell
+.\scripts\dev.ps1
+.\scripts\verify.ps1
+```
+
+`data/`、`.env`、SQLite、日志、构建产物和企业资料均不得提交 Git。详细契约见 [docs/API.md](docs/API.md)、[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) 与 [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)。
