@@ -17,6 +17,8 @@ const baseSchema = {
     RAG_API_KEY: { type: 'string', minLength: 32 },
     FRONTEND_SESSION_SECRET: { type: 'string', minLength: 32 },
     FRONTEND_SESSION_TTL_SECONDS: { type: 'integer', minimum: 60, maximum: 14400 },
+    FRONTEND_DEFAULT_TOPIC_ID: { type: 'string', pattern: '^(?:|topic_[0-9a-f]{32})$' },
+    FRONTEND_DIST_DIR: { type: 'string', minLength: 1 },
     CORS_ORIGINS: { type: 'string', minLength: 1 },
     DATA_DIR: { type: 'string', minLength: 1 },
     MAX_FILE_MB: { type: 'integer', minimum: 1, maximum: 30 },
@@ -26,6 +28,8 @@ const baseSchema = {
     MODEL_BASE_URL: { type: 'string' },
     MODEL_API_KEY: { type: 'string' },
     EMBEDDING_MODEL: { type: 'string' },
+    CHAT_MODEL: { type: 'string' },
+    FIXED_REFUSAL_TEXT: { type: 'string', minLength: 1, maxLength: 500 },
     MODEL_CONNECT_TIMEOUT_SECONDS: { type: 'integer', minimum: 1, maximum: 60 },
     MODEL_TOTAL_TIMEOUT_SECONDS: { type: 'integer', minimum: 1, maximum: 300 },
     CHUNK_TARGET_CHARS: { type: 'integer', minimum: 800, maximum: 1200 },
@@ -101,10 +105,16 @@ function parseModelConfig(values) {
   const baseUrl = values.MODEL_BASE_URL.trim();
   const apiKey = values.MODEL_API_KEY.trim();
   const embeddingModel = values.EMBEDDING_MODEL.trim();
+  const chatModel = values.CHAT_MODEL.trim();
   const configuredCount = [baseUrl, apiKey, embeddingModel].filter(Boolean).length;
   if (configuredCount !== 0 && configuredCount !== 3) {
     failConfig('Embedding 配置必须同时提供地址、API Key 和模型 ID', {
       fields: ['MODEL_BASE_URL', 'MODEL_API_KEY', 'EMBEDDING_MODEL']
+    });
+  }
+  if (chatModel && configuredCount !== 3) {
+    failConfig('Chat 配置必须与完整 Embedding 模型配置共同提供', {
+      fields: ['MODEL_BASE_URL', 'MODEL_API_KEY', 'EMBEDDING_MODEL', 'CHAT_MODEL']
     });
   }
   if (Number(values.MODEL_CONNECT_TIMEOUT_SECONDS) > Number(values.MODEL_TOTAL_TIMEOUT_SECONDS)) {
@@ -126,6 +136,8 @@ function parseModelConfig(values) {
     apiKey: apiKey || null,
     embeddingModel: embeddingModel || null,
     embeddingConfigured: configuredCount === 3,
+    chatModel: chatModel || null,
+    chatConfigured: configuredCount === 3 && Boolean(chatModel),
     connectTimeoutMs: Number(values.MODEL_CONNECT_TIMEOUT_SECONDS) * 1000,
     totalTimeoutMs: Number(values.MODEL_TOTAL_TIMEOUT_SECONDS) * 1000
   };
@@ -139,6 +151,8 @@ export function loadConfig(env = process.env, { appRoot = process.cwd() } = {}) 
     RAG_HOST: env.RAG_HOST || '127.0.0.1',
     RAG_PORT: env.RAG_PORT || '3000',
     FRONTEND_SESSION_TTL_SECONDS: env.FRONTEND_SESSION_TTL_SECONDS || '3600',
+    FRONTEND_DEFAULT_TOPIC_ID: env.FRONTEND_DEFAULT_TOPIC_ID || '',
+    FRONTEND_DIST_DIR: env.FRONTEND_DIST_DIR || './frontend/dist',
     CORS_ORIGINS: env.CORS_ORIGINS || 'http://localhost:5173',
     DATA_DIR: env.DATA_DIR || './data',
     MAX_FILE_MB: env.MAX_FILE_MB || '30',
@@ -148,6 +162,8 @@ export function loadConfig(env = process.env, { appRoot = process.cwd() } = {}) 
     MODEL_BASE_URL: env.MODEL_BASE_URL || '',
     MODEL_API_KEY: env.MODEL_API_KEY || '',
     EMBEDDING_MODEL: env.EMBEDDING_MODEL || '',
+    CHAT_MODEL: env.CHAT_MODEL || '',
+    FIXED_REFUSAL_TEXT: env.FIXED_REFUSAL_TEXT || '知识库中未找到可靠依据，暂时无法回答该问题。',
     MODEL_CONNECT_TIMEOUT_SECONDS: env.MODEL_CONNECT_TIMEOUT_SECONDS || '5',
     MODEL_TOTAL_TIMEOUT_SECONDS: env.MODEL_TOTAL_TIMEOUT_SECONDS || '30',
     CHUNK_TARGET_CHARS: env.CHUNK_TARGET_CHARS || '1000',
@@ -168,6 +184,9 @@ export function loadConfig(env = process.env, { appRoot = process.cwd() } = {}) 
   validateSecret('FRONTEND_SESSION_SECRET', values.FRONTEND_SESSION_SECRET);
   const corsOrigins = parseOrigins(values.CORS_ORIGINS);
   const model = parseModelConfig(values);
+  if (!values.FIXED_REFUSAL_TEXT.trim()) {
+    failConfig('FIXED_REFUSAL_TEXT 不得为空', { field: 'FIXED_REFUSAL_TEXT' });
+  }
   let teamAllowedCidrs = [];
 
   if (values.RUN_PROFILE === 'local' && values.RAG_HOST !== '127.0.0.1') {
@@ -201,6 +220,7 @@ export function loadConfig(env = process.env, { appRoot = process.cwd() } = {}) 
     sessionTtlSeconds: Number(values.FRONTEND_SESSION_TTL_SECONDS),
     frontendDefaultTopicId: values.FRONTEND_DEFAULT_TOPIC_ID?.trim() || null,
     frontendDistDir: path.resolve(appRoot, values.FRONTEND_DIST_DIR || './frontend/dist'),
+    fixedRefusalText: values.FIXED_REFUSAL_TEXT.trim(),
     corsOrigins,
     teamAllowedCidrs,
     dataDir: path.resolve(appRoot, values.DATA_DIR),
@@ -219,9 +239,6 @@ export function loadConfig(env = process.env, { appRoot = process.cwd() } = {}) 
       maxChars: 1200,
       overlapChars: Number(values.CHUNK_OVERLAP_CHARS)
     }),
-    model: Object.freeze({
-      ...model,
-      chatModel: values.CHAT_MODEL?.trim() || null
-    })
+    model: Object.freeze(model)
   });
 }

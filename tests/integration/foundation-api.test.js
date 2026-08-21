@@ -139,7 +139,7 @@ test('valid team profile initializes without requiring topics or documents', asy
       RAG_HOST: '0.0.0.0',
       DATA_DIR: dataDir,
       CORS_ORIGINS: 'http://192.168.50.20:5173',
-      FRONTEND_DEFAULT_TOPIC_ID: 'topic_default',
+      FRONTEND_DEFAULT_TOPIC_ID: `topic_${'a'.repeat(32)}`,
       TEAM_ALLOWED_CIDRS: '192.168.50.0/24'
     })
   });

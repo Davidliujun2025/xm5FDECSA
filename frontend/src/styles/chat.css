@@ -84,6 +84,14 @@ body {
   background: #65c59a;
 }
 
+.status-dot.loading {
+  background: #f1c75b;
+}
+
+.status-dot.error {
+  background: #ff8e72;
+}
+
 .close-button {
   display: grid;
   flex: 0 0 auto;
@@ -180,6 +188,51 @@ body {
   background: #176f72;
   border: 0;
   border-radius: 14px 4px 14px 14px;
+}
+
+.message-bubble.status-blocked,
+.message-bubble.status-error {
+  border-color: #e7aa9c;
+  background: #fff5f2;
+}
+
+.message-bubble.status-no_reliable_evidence {
+  border-color: #dbc98e;
+  background: #fffbeb;
+}
+
+.citation-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 8px 0 0;
+  padding-left: 24px;
+  font-size: 12px;
+  color: #4b5559;
+}
+
+.citation-item {
+  padding: 8px 10px;
+  background: #eef5f4;
+  border: 1px solid #d3e3e1;
+  border-radius: 8px;
+}
+
+.citation-item a {
+  color: #176f72;
+  font-weight: 700;
+}
+
+.citation-location {
+  display: block;
+  margin-top: 3px;
+  color: #6f797c;
+}
+
+.citation-item p {
+  margin: 5px 0 0;
+  overflow-wrap: anywhere;
+  line-height: 1.5;
 }
 
 .welcome-message {

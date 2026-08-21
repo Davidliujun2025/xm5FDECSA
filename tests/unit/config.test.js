@@ -86,6 +86,31 @@ test('Embedding configuration is all-or-none and constrains timeouts and chunk s
   assert.deepEqual(config.chunk, { minChars: 800, targetChars: 1000, maxChars: 1200, overlapChars: 150 });
 });
 
+test('Chat configuration validates model prerequisites, default Topic and refusal text', () => {
+  assert.throws(
+    () => loadConfig(foundationEnv({ CHAT_MODEL: 'chat-v1' })),
+    (error) => error.errorCode === 'RAG_CONFIG_INVALID'
+  );
+  assert.throws(
+    () => loadConfig(foundationEnv({ FRONTEND_DEFAULT_TOPIC_ID: 'topic_invalid' })),
+    (error) => error.errorCode === 'RAG_CONFIG_INVALID'
+  );
+  assert.throws(
+    () => loadConfig(foundationEnv({ FIXED_REFUSAL_TEXT: '   ' })),
+    (error) => error.errorCode === 'RAG_CONFIG_INVALID' && error.details.field === 'FIXED_REFUSAL_TEXT'
+  );
+  const config = loadConfig(foundationEnv({
+    FRONTEND_DEFAULT_TOPIC_ID: `topic_${'d'.repeat(32)}`,
+    MODEL_BASE_URL: 'https://models.example.test/v1',
+    MODEL_API_KEY: 'model-key',
+    EMBEDDING_MODEL: 'embed-v1',
+    CHAT_MODEL: 'chat-v1'
+  }));
+  assert.equal(config.model.chatConfigured, true);
+  assert.equal(config.model.chatModel, 'chat-v1');
+  assert.equal(config.fixedRefusalText, '知识库中未找到可靠依据，暂时无法回答该问题。');
+});
+
 test('team profile requires default topic, private binding and allowed CIDRs', () => {
   const base = foundationEnv({
     RUN_PROFILE: 'team',
@@ -97,21 +122,21 @@ test('team profile requires default topic, private binding and allowed CIDRs', (
     (error) => error.errorCode === 'RAG_CONFIG_INVALID' && error.details.field === 'FRONTEND_DEFAULT_TOPIC_ID'
   );
   assert.throws(
-    () => loadConfig({ ...base, RAG_HOST: '', FRONTEND_DEFAULT_TOPIC_ID: 'topic_default', TEAM_ALLOWED_CIDRS: '10.0.0.0/8' }),
+    () => loadConfig({ ...base, RAG_HOST: '', FRONTEND_DEFAULT_TOPIC_ID: `topic_${'a'.repeat(32)}`, TEAM_ALLOWED_CIDRS: '10.0.0.0/8' }),
     (error) => error.errorCode === 'RAG_CONFIG_INVALID' && error.details.field === 'RAG_HOST'
   );
   assert.throws(
-    () => loadConfig({ ...base, CORS_ORIGINS: '', FRONTEND_DEFAULT_TOPIC_ID: 'topic_default', TEAM_ALLOWED_CIDRS: '10.0.0.0/8' }),
+    () => loadConfig({ ...base, CORS_ORIGINS: '', FRONTEND_DEFAULT_TOPIC_ID: `topic_${'a'.repeat(32)}`, TEAM_ALLOWED_CIDRS: '10.0.0.0/8' }),
     (error) => error.errorCode === 'RAG_CONFIG_INVALID' && error.details.field === 'CORS_ORIGINS'
   );
   assert.throws(
-    () => loadConfig({ ...base, FRONTEND_DEFAULT_TOPIC_ID: 'topic_default', TEAM_ALLOWED_CIDRS: '8.8.8.0/24' }),
+    () => loadConfig({ ...base, FRONTEND_DEFAULT_TOPIC_ID: `topic_${'a'.repeat(32)}`, TEAM_ALLOWED_CIDRS: '8.8.8.0/24' }),
     (error) => error.errorCode === 'RAG_CONFIG_INVALID' && error.details.field === 'TEAM_ALLOWED_CIDRS'
   );
 
   const config = loadConfig({
     ...base,
-    FRONTEND_DEFAULT_TOPIC_ID: 'topic_default',
+    FRONTEND_DEFAULT_TOPIC_ID: `topic_${'a'.repeat(32)}`,
     TEAM_ALLOWED_CIDRS: '192.168.10.0/24,10.0.0.0/8'
   });
   assert.equal(config.profile, 'team');

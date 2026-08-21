@@ -1,81 +1,59 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import BotAvatar from './BotAvatar';
 import MessageList from './MessageList';
 import InputBar from './InputBar';
+import { initializeBrowserSession, sendChat } from '../api/rag-client';
 
 const BOT_NAME = '华夏智诚管理学院';
-const WELCOME_MESSAGE = `您好，欢迎来到华夏智诚项目管理学院！👋
-我是您的智能小助手，很高兴为您服务。
-我可以为您解答以下问题：
-
-📚 **PMP®课程与备考：**课程形式、班期安排、学习平台、教材资料
-📝 **报考与考试：**报考条件、报名流程、考试形式与费用
-🎓 **学员服务：**报名付款、账号开通、学习群与直播访问
-🔄 **证书续证与PDU：**证书有效期、PDU积累、续证费用
-
-您可以直接输入问题，我会为您解答。`;
+const WELCOME_MESSAGE = '您好，我是知识库助手。请就已发布的知识库资料提问；回答会显示可核验的原文引用。';
 
 let messageSequence = 0;
 
-function createMessage(role, content, kind = 'text') {
+function createMessage(role, content, { status = null, citations = [] } = {}) {
   messageSequence += 1;
   return {
     id: `msg-${Date.now()}-${messageSequence}`,
     role,
     content,
-    kind,
+    status,
+    citations,
     timestamp: new Date().toISOString()
   };
 }
 
-// 后端服务未启动时，用本地演示回复保证聊天窗口可以完整交互。
-function getDemoReply(question) {
-  const text = question.toLowerCase();
-
-  if (/pmp|备考|课程|班期|学习平台|教材/.test(text)) {
-    return `关于 PMP® 课程，您可以从这些方面了解：
-· 课程形式：线下面授、线上直播、录播回放
-· 班期安排：全年滚动开班，可联系顾问查看最新课表
-· 学习平台：报名后开通专属学习账号，支持在线听课与刷题
-· 教材资料：提供官方教材、讲义、题库和考前冲刺资料`;
-  }
-
-  if (/报考|报名|条件|流程|考试|费用/.test(text)) {
-    return `关于报考与考试：
-· 报考条件：需满足 PMI 规定的学历与项目管理经验要求
-· 报名流程：提交个人信息、审核资格、完成考试报名
-· 考试形式：机考与笔试形式以官方安排为准
-· 考试费用：PMP® 考试费用由 PMI 官方制定`;
-  }
-
-  if (/付款|账号|学习群|直播/.test(text)) {
-    return `关于学员服务：
-· 报名付款：支持线上支付与对公转账，付款后开具正规发票
-· 账号开通：报名成功后 1-2 个工作日开通学习账号
-· 学习群：班主任会邀请您加入当期学员学习群
-· 直播访问：直播链接会提前在群内和系统消息中发布`;
-  }
-
-  if (/证书|续证|pdu|有效期/.test(text)) {
-    return `关于证书续证与 PDU：
-· 证书有效期：PMP® 证书有效期为 3 年
-· PDU 积累：通过课程学习、讲座、志愿服务等方式积累
-· 续证费用：续证时需缴纳 PMI 规定的费用并完成申报`;
-  }
-
-  return `我已经收到您的问题。当前知识库服务暂未连接，暂时无法给出准确答案；您可以稍后重试，或先询问课程、报考、学员服务、续证等主题。`;
-}
-
 export default function ChatBot() {
-  const [messages, setMessages] = useState(() => [createMessage('bot', WELCOME_MESSAGE, 'welcome')]);
+  const [messages, setMessages] = useState(() => [createMessage('bot', WELCOME_MESSAGE)]);
   const [isTyping, setIsTyping] = useState(false);
   const [isClosed, setIsClosed] = useState(false);
-  const [conversationId, setConversationId] = useState('');
+  const [sessionState, setSessionState] = useState('loading');
   const messageListRef = useRef(null);
 
-  const appendBotMessage = (content) => {
-    setMessages((current) => [...current, createMessage('bot', content)]);
+  useEffect(() => {
+    let active = true;
+    initializeBrowserSession()
+      .then(() => active && setSessionState('ready'))
+      .catch(() => active && setSessionState('error'));
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const appendBotMessage = (content, options) => {
+    setMessages((current) => [...current, createMessage('bot', content, options)]);
   };
+
+  function errorMessage(error) {
+    if (error.status === 401 || error.status === 403) {
+      return '查询会话无效或已过期，请重新发送问题。';
+    }
+    if (error.status === 429) {
+      return '当前问答请求较多，请稍后重试。';
+    }
+    if (error.status === 503) {
+      return '知识库服务或模型暂时不可用，请稍后重试。';
+    }
+    return '知识库接口请求失败，请检查连接后重试。';
+  }
 
   async function handleSend(message) {
     const userMessage = createMessage('user', message);
@@ -83,28 +61,12 @@ export default function ChatBot() {
     setIsTyping(true);
 
     try {
-      const response = await fetch('/api/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          message,
-          conversationId: conversationId || undefined
-        })
-      });
-
-      if (!response.ok) {
-        throw new Error('Chat API unavailable');
-      }
-
-      const data = await response.json();
-      appendBotMessage(data.answer || '抱歉，我暂时无法回答这个问题，请换个方式再问一次。');
-
-      if (data.conversationId) {
-        setConversationId(data.conversationId);
-      }
-    } catch {
-      await new Promise((resolve) => setTimeout(resolve, 500));
-      appendBotMessage(getDemoReply(message));
+      const data = await sendChat(message);
+      setSessionState('ready');
+      appendBotMessage(data.answer, { status: data.status, citations: data.citations });
+    } catch (error) {
+      setSessionState('error');
+      appendBotMessage(errorMessage(error), { status: 'ERROR' });
     } finally {
       setIsTyping(false);
     }
@@ -134,8 +96,8 @@ export default function ChatBot() {
           <div className="header-copy">
           <div className="header-title">{BOT_NAME}</div>
           <div className="header-subtitle">
-            <span className="status-dot" aria-hidden="true" />
-            智能小助手
+            <span className={`status-dot ${sessionState}`} aria-hidden="true" />
+            {sessionState === 'loading' ? '正在连接' : sessionState === 'error' ? '连接异常' : '知识库在线'}
           </div>
         </div>
         <button
@@ -153,7 +115,7 @@ export default function ChatBot() {
       </header>
 
       <MessageList messages={messages} isTyping={isTyping} listRef={messageListRef} />
-        <InputBar onSend={handleSend} disabled={isTyping} />
+        <InputBar onSend={handleSend} disabled={isTyping || sessionState === 'loading'} />
       </div>
     </main>
   );

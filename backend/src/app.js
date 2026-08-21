@@ -1,4 +1,5 @@
 import path from 'node:path';
+import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import cors from 'cors';
 import dotenv from 'dotenv';
@@ -7,6 +8,7 @@ import swaggerUi from 'swagger-ui-express';
 
 import { LocalFileStore } from './adapters/local-files.js';
 import { EmbeddingClient } from './adapters/models/embedding-client.js';
+import { ChatClient } from './adapters/models/chat-client.js';
 import { DocumentRepository } from './adapters/sqlite/document.repository.js';
 import { IngestionRepository } from './adapters/sqlite/ingestion.repository.js';
 import { RetrievalRepository } from './adapters/sqlite/retrieval.repository.js';
@@ -16,11 +18,14 @@ import { TopicRepository } from './adapters/sqlite/topic.repository.js';
 import { loadConfig } from './config.js';
 import { AppError, errorMiddleware, notFoundMiddleware } from './domain/errors.js';
 import { createAuthToolkit, createBrowserSessionRouter } from './routes/rag-v1/auth.js';
+import { createCompatibilityChatRouter } from './routes/chat.js';
+import { createChatRouter } from './routes/rag-v1/chat.js';
 import { createDocumentRouter, createJobRouter } from './routes/rag-v1/documents.js';
 import { createOpenApiDocument } from './routes/rag-v1/openapi.js';
 import { createSearchRouter } from './routes/rag-v1/search.js';
 import { createTopicRouter } from './routes/rag-v1/topics.js';
 import { DocumentService } from './services/document.service.js';
+import { AnswerService } from './services/answer.service.js';
 import { IngestionService } from './services/ingestion.service.js';
 import { RetrievalService } from './services/retrieval.service.js';
 import { TopicService } from './services/topic.service.js';
@@ -32,7 +37,7 @@ import { ParserWorkerClient } from './workers/parser-worker.client.js';
 export const APP_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 
 function createCorsMiddleware(config) {
-  return cors({
+  const corsHandler = cors({
     credentials: true,
     methods: ['GET', 'POST', 'PATCH', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Idempotency-Key', 'X-API-Key', 'X-Trace-Id'],
@@ -55,6 +60,16 @@ function createCorsMiddleware(config) {
       }));
     }
   });
+  return (request, response, next) => {
+    const origin = request.get('Origin');
+    const forwardedProto = request.get('X-Forwarded-Proto')?.split(',')[0].trim();
+    const sameOrigin = origin && origin === `${forwardedProto || request.protocol}://${request.get('Host')}`;
+    if (sameOrigin) {
+      next();
+      return;
+    }
+    corsHandler(request, response, next);
+  };
 }
 
 export function createReadinessState() {
@@ -108,6 +123,8 @@ export function createApp({ config, readiness, fileStore, logger, registerRoutes
   app.use('/api/rag/v1/documents', createDocumentRouter({ auth, fileStore }));
   app.use('/api/rag/v1/jobs', createJobRouter({ auth }));
   app.use('/api/rag/v1/search', createSearchRouter({ auth, config }));
+  app.use('/api/rag/v1/chat', createChatRouter({ auth }));
+  app.use('/api/chat', createCompatibilityChatRouter({ auth, config }));
   app.get('/api/rag/v1/openapi.json', (request, response) => response.json(openApi));
   app.use('/api/rag/v1/docs', swaggerUi.serve, swaggerUi.setup(openApi, {
     customSiteTitle: '华夏智诚 RAG API'
@@ -117,12 +134,23 @@ export function createApp({ config, readiness, fileStore, logger, registerRoutes
     registerRoutes(app, auth);
   }
 
+  if (config.nodeEnv === 'production' && existsSync(config.frontendDistDir)) {
+    app.use(express.static(config.frontendDistDir, { index: false }));
+    app.get('*', (request, response, next) => {
+      if (request.path.startsWith('/api/') || request.path.startsWith('/health/') || !request.accepts('html')) {
+        next();
+        return;
+      }
+      response.sendFile(path.join(config.frontendDistDir, 'index.html'));
+    });
+  }
+
   app.use(notFoundMiddleware);
   app.use(errorMiddleware(appLogger));
   return app;
 }
 
-export async function createRuntime({ env = process.env, appRoot = APP_ROOT, logger, initializationDelayMs = 0, registerRoutes, embeddingFetch } = {}) {
+export async function createRuntime({ env = process.env, appRoot = APP_ROOT, logger, initializationDelayMs = 0, registerRoutes, embeddingFetch, chatFetch } = {}) {
   const config = loadConfig(env, { appRoot });
   const appLogger = logger ?? createLogger(config);
   ensureDataDirectories(config.dataDir);
@@ -189,6 +217,22 @@ export async function createRuntime({ env = process.env, appRoot = APP_ROOT, log
           embeddingClient,
           config
         });
+        if (config.model.chatConfigured) {
+          const chatClient = new ChatClient({
+            baseUrl: config.model.baseUrl,
+            apiKey: config.model.apiKey,
+            model: config.model.chatModel,
+            connectTimeoutMs: config.model.connectTimeoutMs,
+            totalTimeoutMs: config.model.totalTimeoutMs,
+            fetchImpl: chatFetch ?? globalThis.fetch
+          });
+          app.locals.answerService = new AnswerService({
+            retrievalService: app.locals.retrievalService,
+            retrievalRepository,
+            chatClient,
+            config
+          });
+        }
       }
       app.locals.documentService = new DocumentService(documentRepository, fileStore, {
         onJobQueued: () => jobLoop?.wake()

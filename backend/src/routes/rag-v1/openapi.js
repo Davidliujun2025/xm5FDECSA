@@ -262,6 +262,50 @@ export function createOpenApiDocument(config) {
             503: { $ref: '#/components/responses/ServiceUnavailable' }
           }
         }
+      },
+      '/api/rag/v1/chat': {
+        post: {
+          operationId: 'answerTopicQuestion',
+          summary: '在指定 Topic 内执行严格问答',
+          description: '只使用本次检索到的 PUBLISHED 证据生成完整回答；无证据、结构或 citation 复核失败时整题拒答。',
+          security: [{ BackendApiKey: [] }, { BrowserSession: [] }],
+          requestBody: {
+            required: true,
+            content: { 'application/json': { schema: { $ref: '#/components/schemas/ChatRequest' } } }
+          },
+          responses: {
+            200: { description: 'ANSWERED、NO_RELIABLE_EVIDENCE 或 BLOCKED 最终响应', content: { 'application/json': { schema: { $ref: '#/components/schemas/ChatResponse' } } } },
+            400: { $ref: '#/components/responses/InvalidRequest' },
+            401: { $ref: '#/components/responses/Unauthorized' },
+            404: { $ref: '#/components/responses/NotFound' },
+            409: { $ref: '#/components/responses/Conflict' },
+            422: { $ref: '#/components/responses/UnprocessableFile' },
+            429: { $ref: '#/components/responses/TooManyRequests' },
+            503: { $ref: '#/components/responses/ServiceUnavailable' }
+          }
+        }
+      },
+      '/api/chat': {
+        post: {
+          operationId: 'answerDefaultTopicQuestion',
+          summary: '既有前端严格问答兼容入口',
+          description: '服务端绑定 FRONTEND_DEFAULT_TOPIC_ID；不接受 conversationId 或 Topic 覆盖。',
+          security: [{ BackendApiKey: [] }, { BrowserSession: [] }],
+          requestBody: {
+            required: true,
+            content: { 'application/json': { schema: { $ref: '#/components/schemas/CompatibilityChatRequest' } } }
+          },
+          responses: {
+            200: { description: '与版本化接口相同的最终三状态响应', content: { 'application/json': { schema: { $ref: '#/components/schemas/ChatResponse' } } } },
+            400: { $ref: '#/components/responses/InvalidRequest' },
+            401: { $ref: '#/components/responses/Unauthorized' },
+            404: { $ref: '#/components/responses/NotFound' },
+            409: { $ref: '#/components/responses/Conflict' },
+            422: { $ref: '#/components/responses/UnprocessableFile' },
+            429: { $ref: '#/components/responses/TooManyRequests' },
+            503: { $ref: '#/components/responses/ServiceUnavailable' }
+          }
+        }
       }
     },
     components: {
@@ -435,6 +479,47 @@ export function createOpenApiDocument(config) {
           properties: {
             topicId: { type: 'string', pattern: '^topic_[0-9a-f]{32}$' },
             results: { type: 'array', maxItems: 10, items: { $ref: '#/components/schemas/CitationCandidate' } }
+          }
+        },
+        ChatRequest: {
+          type: 'object',
+          additionalProperties: false,
+          required: ['topicId', 'question'],
+          properties: {
+            topicId: { type: 'string', pattern: '^topic_[0-9a-f]{32}$' },
+            question: { type: 'string', minLength: 1, maxLength: 4000 }
+          }
+        },
+        CompatibilityChatRequest: {
+          type: 'object',
+          additionalProperties: false,
+          required: ['message'],
+          properties: {
+            message: { type: 'string', minLength: 1, maxLength: 4000 }
+          }
+        },
+        Citation: {
+          type: 'object',
+          additionalProperties: false,
+          required: ['citationId', 'documentId', 'fileName', 'location', 'excerpt'],
+          properties: {
+            citationId: { type: 'string' },
+            documentId: { type: 'string', pattern: '^doc_[0-9a-f]{32}$' },
+            fileName: { type: 'string' },
+            location: { type: 'object' },
+            excerpt: { type: 'string' }
+          }
+        },
+        ChatResponse: {
+          type: 'object',
+          additionalProperties: false,
+          required: ['status', 'topicId', 'answer', 'citations', 'traceId'],
+          properties: {
+            status: { enum: ['ANSWERED', 'NO_RELIABLE_EVIDENCE', 'BLOCKED'] },
+            topicId: { type: 'string', pattern: '^topic_[0-9a-f]{32}$' },
+            answer: { type: 'string' },
+            citations: { type: 'array', maxItems: 5, items: { $ref: '#/components/schemas/Citation' } },
+            traceId: { type: 'string' }
           }
         },
         Error: {

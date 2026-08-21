@@ -5,6 +5,15 @@ import { AppError } from '../../domain/errors.js';
 
 const COOKIE_NAME = 'rag_query_session';
 
+function isSameOriginRequest(request, origin) {
+  if (!origin) {
+    return false;
+  }
+  const forwardedProto = request.get('X-Forwarded-Proto')?.split(',')[0].trim();
+  const protocol = forwardedProto || request.protocol;
+  return origin === `${protocol}://${request.get('Host')}`;
+}
+
 function safeEqual(left, right) {
   const leftBuffer = Buffer.from(left || '', 'utf8');
   const rightBuffer = Buffer.from(right || '', 'utf8');
@@ -47,7 +56,7 @@ export function createAuthToolkit(config, { now = () => Date.now() } = {}) {
     return `${payload}.${sign(payload, config.sessionSecret)}`;
   }
 
-  function verifyBrowserSession(token, origin) {
+  function verifyBrowserSession(token, origin, { sameOrigin = false } = {}) {
     const [payload, signature, extra] = (token || '').split('.');
     if (!payload || !signature || extra || !safeEqual(signature, sign(payload, config.sessionSecret))) {
       throw unauthorized('浏览器查询会话无效或已过期');
@@ -62,7 +71,7 @@ export function createAuthToolkit(config, { now = () => Date.now() } = {}) {
     if (session.v !== 1 || session.scope !== 'query' || !session.exp || session.exp <= currentTime || session.iat > currentTime + 30) {
       throw unauthorized('浏览器查询会话无效或已过期');
     }
-    if (origin && (session.origin !== origin || !config.corsOrigins.includes(origin))) {
+    if (origin && (session.origin !== origin || (!sameOrigin && !config.corsOrigins.includes(origin)))) {
       throw unauthorized('浏览器查询会话无效或已过期');
     }
     return session;
@@ -85,7 +94,8 @@ export function createAuthToolkit(config, { now = () => Date.now() } = {}) {
     }
     try {
       const token = parseCookies(request.get('Cookie'))[COOKIE_NAME];
-      const session = verifyBrowserSession(token, request.get('Origin'));
+      const origin = request.get('Origin');
+      const session = verifyBrowserSession(token, origin, { sameOrigin: isSameOriginRequest(request, origin) });
       request.auth = { type: 'browser-session', scopes: ['query'], sessionId: session.sid };
       next();
     } catch (error) {
@@ -102,7 +112,7 @@ export function createBrowserSessionRouter({ config, auth }) {
 
   router.post('/browser-session', (request, response, next) => {
     const origin = request.get('Origin');
-    if (!origin || !config.corsOrigins.includes(origin)) {
+    if (!origin || (!config.corsOrigins.includes(origin) && !isSameOriginRequest(request, origin))) {
       next(new AppError({
         statusCode: 403,
         errorCode: 'RAG_ORIGIN_FORBIDDEN',
