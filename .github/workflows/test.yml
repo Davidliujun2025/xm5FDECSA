@@ -16,6 +16,8 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run verify
+      - name: Mock browser acceptance end-to-end
+        run: node --test tests/integration/local-acceptance-upload.test.js tests/integration/acceptance-security.test.js tests/integration/acceptance-model-runtime.test.js tests/integration/sample-upload.test.js
 
   ubuntu:
     name: Ubuntu base (supplementary)

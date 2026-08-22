@@ -221,7 +221,7 @@
   - 可保留 ubuntu-latest 基础测试，但不能替代 Windows。
   - 验收：Windows Job 成功才允许合并。
 
-- [ ] **T6.3 在 CI 执行 Mock 浏览器端到端**
+- [x] **T6.3 在 CI 执行 Mock 浏览器端到端**
   - 不调用真实模型，不读取 GitHub Secret 中的模型凭据。
   - 验证 acceptance route、上传、READY、人工发布、问答和引用。
   - 验收：断网或无模型密钥情况下稳定通过。
