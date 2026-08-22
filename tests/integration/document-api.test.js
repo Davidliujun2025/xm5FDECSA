@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { existsSync, mkdtempSync, readdirSync, rmSync } from 'node:fs';
 import http from 'node:http';
 import os from 'node:os';
@@ -73,6 +74,7 @@ test('all six formats upload through production routes and remain UPLOADED + QUE
   for (const { fixture, response } of uploads) {
     const detail = await api.get(`/api/rag/v1/documents/${response.documentId}`).set('X-API-Key', API_KEY).expect(200);
     assert.equal(detail.body.jobId, response.jobId);
+    assert.equal(detail.body.sha256, createHash('sha256').update(fixture.bytes).digest('hex'));
     const job = await api.get(`/api/rag/v1/jobs/${response.jobId}`).set('X-API-Key', API_KEY).expect(200);
     assert.equal(job.body.status, 'QUEUED');
     assert.equal(job.body.stage, 'QUEUED');
@@ -84,6 +86,10 @@ test('all six formats upload through production routes and remain UPLOADED + QUE
   const txt = uploads.find(({ fixture }) => fixture.extension === 'txt');
   const file = await api.get(`/api/rag/v1/documents/${txt.response.documentId}/file`).set('X-API-Key', API_KEY).expect(200);
   assert.equal(file.text, txt.fixture.bytes.toString('utf8'));
+  assert.equal(
+    createHash('sha256').update(Buffer.from(file.text, 'utf8')).digest('hex'),
+    createHash('sha256').update(txt.fixture.bytes).digest('hex')
+  );
 
   const browserSession = await api.post('/api/rag/v1/auth/browser-session').set('Origin', 'http://localhost:5173').expect(204);
   const cookie = browserSession.headers['set-cookie'][0].split(';')[0];

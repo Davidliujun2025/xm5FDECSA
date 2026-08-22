@@ -5,7 +5,10 @@ import path from 'node:path';
 import { test } from 'node:test';
 import request from 'supertest';
 
+import { LocalFileStore } from '../../backend/src/adapters/local-files.js';
 import { APP_ROOT, createRuntime } from '../../backend/src/app.js';
+import { AppError } from '../../backend/src/domain/errors.js';
+import { IngestionService } from '../../backend/src/services/ingestion.service.js';
 import { API_KEY, foundationEnv } from '../helpers/foundation.js';
 
 function configuredEnv(dataDir, overrides = {}) {
@@ -119,6 +122,7 @@ test('job loop serializes ingestion and lifecycle keeps READY separate from PUBL
   const firstProcessing = await getJob(api, first.jobId);
   assert.equal(firstProcessing.status, 'PROCESSING');
   assert.equal(firstProcessing.stage, 'EMBEDDING');
+  assert.equal(runtime.ingestionRepository.listDocumentChunks(first.documentId).length, 0);
 
   const second = await uploadText(api, topicId, 'second', 'Second different policy fact. '.repeat(150));
   assert.equal((await getJob(api, second.jobId)).status, 'QUEUED');
@@ -159,6 +163,43 @@ test('job loop serializes ingestion and lifecycle keeps READY separate from PUBL
     && chunk.embedding.length === 12
     && chunk.parse_version === firstDocument.parseVersion
   )));
+  assert.deepEqual(chunks.map((chunk) => chunk.ordinal), chunks.map((chunk, index) => index));
+
+  const duplicateOrdinal = runtime.database.prepare(`
+    INSERT INTO chunk(
+      id, topic_id, document_id, ordinal, text, location, text_hash, embedding,
+      embedding_dim, embedding_model, embedding_space, parse_version, created_at
+    )
+    SELECT ?, topic_id, document_id, ordinal, text, location, text_hash, embedding,
+           embedding_dim, embedding_model, embedding_space, parse_version, created_at
+    FROM chunk WHERE id = ?
+  `);
+  assert.throws(
+    () => duplicateOrdinal.run('chunk_duplicate_ordinal', chunks[0].id),
+    /UNIQUE constraint failed: chunk\.document_id, chunk\.ordinal/
+  );
+
+  const otherTopicId = await createActiveTopic(api, 'integrity-other');
+  const crossTopicChunk = runtime.database.prepare(`
+    INSERT INTO chunk(
+      id, topic_id, document_id, ordinal, text, location, text_hash, embedding,
+      embedding_dim, embedding_model, embedding_space, parse_version, created_at
+    )
+    SELECT ?, ?, document_id, ordinal + 100000, text, location, text_hash, embedding,
+           embedding_dim, embedding_model, embedding_space, parse_version, created_at
+    FROM chunk WHERE id = ?
+  `);
+  assert.throws(
+    () => crossTopicChunk.run('chunk_cross_topic', otherTopicId, chunks[0].id),
+    /FOREIGN KEY constraint failed/
+  );
+  assert.equal(runtime.database.prepare(`
+    SELECT COUNT(*) AS count FROM chunk c
+    JOIN document d ON d.id = c.document_id
+    WHERE c.topic_id <> d.topic_id
+  `).get().count, 0);
+  assert.deepEqual(runtime.database.prepare('PRAGMA foreign_key_check').all(), []);
+  assert.equal(runtime.database.prepare('PRAGMA integrity_check').get().integrity_check, 'ok');
 
   await api.post(`/api/rag/v1/documents/${first.documentId}/publish`).expect(401);
   const published = await api.post(`/api/rag/v1/documents/${first.documentId}/publish`)
@@ -180,6 +221,72 @@ test('job loop serializes ingestion and lifecycle keeps READY separate from PUBL
   assert.ok(disabled.body.disabledAt);
   await api.get(`/api/rag/v1/documents/${first.documentId}`)
     .set('Origin', 'http://localhost:5173').set('Cookie', cookie).expect(404);
+});
+
+test('parser failure removes every partial chunk and leaves FAILED states only', async (t) => {
+  const dataDir = mkdtempSync(path.join(os.tmpdir(), 'rag-ingestion-parse-failure-'));
+  const runtime = await createRuntime({
+    appRoot: APP_ROOT,
+    env: configuredEnv(dataDir),
+    embeddingFetch: async (url, options) => successResponse(options)
+  });
+  t.after(async () => {
+    await runtime.close();
+    rmSync(dataDir, { recursive: true, force: true });
+  });
+  await runtime.initialize();
+  await runtime.jobLoop.stop();
+
+  const api = request(runtime.app);
+  const topicId = await createActiveTopic(api, 'parse-failure');
+  const uploaded = await uploadText(api, topicId, 'parse-failure', 'Parser failure rollback fact.');
+  const claimed = runtime.ingestionRepository.claimNext();
+  assert.equal(claimed.document.id, uploaded.documentId);
+
+  runtime.database.prepare(`
+    INSERT INTO chunk(
+      id, topic_id, document_id, ordinal, text, location, text_hash, embedding,
+      embedding_dim, embedding_model, embedding_space, parse_version, created_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(
+    'chunk_partial_before_parse_failure',
+    topicId,
+    uploaded.documentId,
+    0,
+    'partial residue',
+    JSON.stringify({ start: { kind: 'line', lineStart: 1 }, end: { kind: 'line', lineEnd: 1 } }),
+    'partial-hash',
+    Buffer.alloc(12),
+    3,
+    'embed-approved-v1',
+    'cosine',
+    'index_partial',
+    new Date().toISOString()
+  );
+
+  const service = new IngestionService({
+    repository: runtime.ingestionRepository,
+    fileStore: new LocalFileStore(runtime.config),
+    parserWorker: {
+      parse: async () => {
+        throw new AppError({ statusCode: 422, errorCode: 'RAG_PARSE_FAILED', message: '合成解析失败' });
+      }
+    },
+    embeddingClient: {
+      embed: async () => assert.fail('解析失败后不得调用 Embedding')
+    },
+    config: runtime.config
+  });
+
+  const outcome = await service.process(claimed);
+  assert.deepEqual(outcome, { status: 'FAILED', errorCode: 'RAG_PARSE_FAILED' });
+  const failedJob = await getJob(api, uploaded.jobId);
+  assert.equal(failedJob.status, 'FAILED');
+  assert.equal(failedJob.errorCode, 'RAG_PARSE_FAILED');
+  assert.equal(runtime.ingestionRepository.listDocumentChunks(uploaded.documentId).length, 0);
+  const failedDocument = (await api.get(`/api/rag/v1/documents/${uploaded.documentId}`)
+    .set('X-API-Key', API_KEY).expect(200)).body;
+  assert.equal(failedDocument.status, 'FAILED');
 });
 
 test('deterministic model failures roll back all chunks while 429 retries at most twice', async (t) => {
