@@ -40,7 +40,7 @@
   - 特别复核 backend/.env.example、旧 service/validator、demo、旧测试和旧脚本的删除是否确属废弃。
   - 验收：形成 PR 描述中的文件变更清单；无意外删除。
 
-- [ ] **T0.4 规范行尾和生成物**
+- [x] **T0.4 规范行尾和生成物**
   - 新增 .gitattributes：JS/MJS/JSON/YAML/Markdown 使用 LF，PowerShell 使用 CRLF。
   - 保持 node_modules、frontend/dist、coverage、artifacts、data、.env、数据库和日志在 .gitignore 中。
   - 验收：git diff --check 无错误；不再出现大面积无意义行尾差异。
