@@ -106,14 +106,9 @@ function parseModelConfig(values) {
   const apiKey = values.MODEL_API_KEY.trim();
   const embeddingModel = values.EMBEDDING_MODEL.trim();
   const chatModel = values.CHAT_MODEL.trim();
-  const configuredCount = [baseUrl, apiKey, embeddingModel].filter(Boolean).length;
-  if (configuredCount !== 0 && configuredCount !== 3) {
-    failConfig('Embedding 配置必须同时提供地址、API Key 和模型 ID', {
-      fields: ['MODEL_BASE_URL', 'MODEL_API_KEY', 'EMBEDDING_MODEL']
-    });
-  }
-  if (chatModel && configuredCount !== 3) {
-    failConfig('Chat 配置必须与完整 Embedding 模型配置共同提供', {
+  const configuredCount = [baseUrl, apiKey, embeddingModel, chatModel].filter(Boolean).length;
+  if (configuredCount !== 0 && configuredCount !== 4) {
+    failConfig('真实模型配置必须同时提供地址、API Key、Embedding 模型 ID 和 Chat 模型 ID', {
       fields: ['MODEL_BASE_URL', 'MODEL_API_KEY', 'EMBEDDING_MODEL', 'CHAT_MODEL']
     });
   }
@@ -135,9 +130,9 @@ function parseModelConfig(values) {
     baseUrl: baseUrl || null,
     apiKey: apiKey || null,
     embeddingModel: embeddingModel || null,
-    embeddingConfigured: configuredCount === 3,
+    embeddingConfigured: configuredCount === 4,
     chatModel: chatModel || null,
-    chatConfigured: configuredCount === 3 && Boolean(chatModel),
+    chatConfigured: configuredCount === 4,
     connectTimeoutMs: Number(values.MODEL_CONNECT_TIMEOUT_SECONDS) * 1000,
     totalTimeoutMs: Number(values.MODEL_TOTAL_TIMEOUT_SECONDS) * 1000
   };

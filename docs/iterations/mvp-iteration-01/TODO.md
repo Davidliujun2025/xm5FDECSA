@@ -154,7 +154,7 @@
 
 对应 PRD：US-05、Manual Real-Model Evaluation。
 
-- [ ] **T4.1 完善真实模型配置说明**
+- [x] **T4.1 完善真实模型配置说明**
   - 说明 MODEL_BASE_URL、MODEL_API_KEY、EMBEDDING_MODEL、CHAT_MODEL 必须成组配置。
   - 说明真实模型数据边界、超时、429、401 和费用风险。
   - 验收：缺失或混填配置在启动阶段失败；文档不含真实凭据。

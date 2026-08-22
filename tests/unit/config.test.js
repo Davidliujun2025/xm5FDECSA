@@ -46,7 +46,7 @@ test('CORS rejects wildcards and URL paths', () => {
   );
 });
 
-test('Embedding configuration is all-or-none and constrains timeouts and chunk settings', () => {
+test('real-model configuration is all-or-none and constrains timeouts and chunk settings', () => {
   assert.throws(
     () => loadConfig(foundationEnv({ MODEL_BASE_URL: 'https://models.example.test/v1' })),
     (error) => error.errorCode === 'RAG_CONFIG_INVALID'
@@ -56,6 +56,7 @@ test('Embedding configuration is all-or-none and constrains timeouts and chunk s
       MODEL_BASE_URL: 'https://models.example.test/v1',
       MODEL_API_KEY: 'model-key',
       EMBEDDING_MODEL: 'embed-v1',
+      CHAT_MODEL: 'chat-v1',
       MODEL_CONNECT_TIMEOUT_SECONDS: '10',
       MODEL_TOTAL_TIMEOUT_SECONDS: '5'
     })),
@@ -76,9 +77,11 @@ test('Embedding configuration is all-or-none and constrains timeouts and chunk s
   const config = loadConfig(foundationEnv({
     MODEL_BASE_URL: 'https://models.example.test/v1',
     MODEL_API_KEY: 'model-key',
-    EMBEDDING_MODEL: 'embed-v1'
+    EMBEDDING_MODEL: 'embed-v1',
+    CHAT_MODEL: 'chat-v1'
   }));
   assert.equal(config.model.embeddingConfigured, true);
+  assert.equal(config.model.chatConfigured, true);
   assert.equal(config.maxTotalChunks, 50000);
   assert.equal(config.retrievalCandidates, 10);
   assert.equal(config.answerContextLimit, 5);
