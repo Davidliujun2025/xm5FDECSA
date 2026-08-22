@@ -5,6 +5,8 @@ import path from 'node:path';
 import { test } from 'node:test';
 
 import { APP_ROOT, createRuntime } from '../../backend/src/app.js';
+import { ACCEPTANCE_MODEL_KIND } from '../../backend/src/adapters/models/acceptance-models.js';
+import { foundationEnv } from '../helpers/foundation.js';
 import {
   createAcceptanceEnvironment,
   safeAcceptanceStartupMessage,
@@ -54,6 +56,7 @@ test('acceptance entry builds before starting and preserves ordinary start injec
       events.push('start');
       assert.equal(options.env.RAG_HOST, '127.0.0.1');
       assert.match(options.env.DATA_DIR, /data[\\/]acceptance$/);
+      assert.equal(options.modelProvider.kind, ACCEPTANCE_MODEL_KIND);
       return { runtime: { config: { port: 3211 } } };
     }
   });
@@ -61,7 +64,7 @@ test('acceptance entry builds before starting and preserves ordinary start injec
   assert.equal(result.runtime.config.port, 3211);
 });
 
-test('acceptance environment initializes an empty isolated directory without a model fallback', async (t) => {
+test('ordinary runtime with acceptance-shaped environment still has no implicit model fallback', async (t) => {
   const appRoot = await mkdtemp(path.join(os.tmpdir(), 'rag-acceptance-entry-'));
   const env = createAcceptanceEnvironment({
     appRoot: APP_ROOT,
@@ -78,6 +81,32 @@ test('acceptance environment initializes an empty isolated directory without a m
   assert.equal(runtime.readiness.isReady(), true);
   assert.equal(runtime.config.host, '127.0.0.1');
   assert.equal(runtime.config.model.embeddingConfigured, false);
+  assert.equal(runtime.app.locals.retrievalService, undefined);
+  assert.equal(runtime.app.locals.answerService, undefined);
+});
+
+test('ordinary team runtime without real model configuration has no Mock fallback', async (t) => {
+  const dataDir = await mkdtemp(path.join(os.tmpdir(), 'rag-team-no-mock-'));
+  const runtime = await createRuntime({
+    appRoot: APP_ROOT,
+    env: foundationEnv({
+      RUN_PROFILE: 'team',
+      RAG_HOST: '0.0.0.0',
+      CORS_ORIGINS: 'http://192.168.50.10:3000',
+      FRONTEND_DEFAULT_TOPIC_ID: `topic_${'d'.repeat(32)}`,
+      TEAM_ALLOWED_CIDRS: '192.168.50.0/24',
+      DATA_DIR: dataDir
+    })
+  });
+  t.after(async () => {
+    await runtime.close();
+    await rm(dataDir, { recursive: true, force: true });
+  });
+  await runtime.initialize();
+  assert.equal(runtime.config.profile, 'team');
+  assert.equal(runtime.config.model.embeddingConfigured, false);
+  assert.equal(runtime.app.locals.retrievalService, undefined);
+  assert.equal(runtime.app.locals.answerService, undefined);
 });
 
 test('acceptance entry rejects invalid ports and emits actionable safe startup errors', () => {

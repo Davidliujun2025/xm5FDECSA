@@ -150,8 +150,16 @@ export function createApp({ config, readiness, fileStore, logger, registerRoutes
   return app;
 }
 
-export async function createRuntime({ env = process.env, appRoot = APP_ROOT, logger, initializationDelayMs = 0, registerRoutes, embeddingFetch, chatFetch } = {}) {
-  const config = loadConfig(env, { appRoot });
+export async function createRuntime({ env = process.env, appRoot = APP_ROOT, logger, initializationDelayMs = 0, registerRoutes, embeddingFetch, chatFetch, modelProvider } = {}) {
+  const baseConfig = loadConfig(env, { appRoot });
+  if (modelProvider && (
+    typeof modelProvider.configure !== 'function'
+    || typeof modelProvider.createEmbeddingClient !== 'function'
+    || typeof modelProvider.createChatClient !== 'function'
+  )) {
+    throw new TypeError('modelProvider must configure and create both model clients');
+  }
+  const config = modelProvider ? modelProvider.configure(baseConfig) : baseConfig;
   const appLogger = logger ?? createLogger(config);
   ensureDataDirectories(config.dataDir);
   const runtimeLock = acquireRuntimeLock(config.dataDir);
@@ -194,14 +202,16 @@ export async function createRuntime({ env = process.env, appRoot = APP_ROOT, log
       if (config.model.embeddingConfigured) {
         ingestionRepository = new IngestionRepository(database, config);
         parserWorker = new ParserWorkerClient();
-        embeddingClient = new EmbeddingClient({
-          baseUrl: config.model.baseUrl,
-          apiKey: config.model.apiKey,
-          model: config.model.embeddingModel,
-          connectTimeoutMs: config.model.connectTimeoutMs,
-          totalTimeoutMs: config.model.totalTimeoutMs,
-          fetchImpl: embeddingFetch ?? globalThis.fetch
-        });
+        embeddingClient = modelProvider
+          ? modelProvider.createEmbeddingClient({ config })
+          : new EmbeddingClient({
+            baseUrl: config.model.baseUrl,
+            apiKey: config.model.apiKey,
+            model: config.model.embeddingModel,
+            connectTimeoutMs: config.model.connectTimeoutMs,
+            totalTimeoutMs: config.model.totalTimeoutMs,
+            fetchImpl: embeddingFetch ?? globalThis.fetch
+          });
         const ingestionService = new IngestionService({
           repository: ingestionRepository,
           fileStore,
@@ -218,14 +228,16 @@ export async function createRuntime({ env = process.env, appRoot = APP_ROOT, log
           config
         });
         if (config.model.chatConfigured) {
-          const chatClient = new ChatClient({
-            baseUrl: config.model.baseUrl,
-            apiKey: config.model.apiKey,
-            model: config.model.chatModel,
-            connectTimeoutMs: config.model.connectTimeoutMs,
-            totalTimeoutMs: config.model.totalTimeoutMs,
-            fetchImpl: chatFetch ?? globalThis.fetch
-          });
+          const chatClient = modelProvider
+            ? modelProvider.createChatClient({ config })
+            : new ChatClient({
+              baseUrl: config.model.baseUrl,
+              apiKey: config.model.apiKey,
+              model: config.model.chatModel,
+              connectTimeoutMs: config.model.connectTimeoutMs,
+              totalTimeoutMs: config.model.totalTimeoutMs,
+              fetchImpl: chatFetch ?? globalThis.fetch
+            });
           app.locals.answerService = new AnswerService({
             retrievalService: app.locals.retrievalService,
             retrievalRepository,

@@ -4,6 +4,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { APP_ROOT, startServer } from '../backend/src/app.js';
+import { createAcceptanceModelProvider } from '../backend/src/adapters/models/acceptance-models.js';
 
 const DEFAULT_PORT = 3000;
 const ACCEPTANCE_DATA_PATH = path.join('data', 'acceptance');
@@ -100,7 +101,12 @@ export async function startAcceptance({
 } = {}) {
   await build(appRoot);
   const env = createAcceptanceEnvironment({ appRoot, baseEnv });
-  return start({ ...runtimeOptions, appRoot, env });
+  return start({
+    ...runtimeOptions,
+    appRoot,
+    env,
+    modelProvider: createAcceptanceModelProvider()
+  });
 }
 
 export function safeAcceptanceStartupMessage(error) {
@@ -123,7 +129,7 @@ function acceptanceUrls(port) {
     `问答页: ${baseUrl}/`,
     `健康检查: ${baseUrl}/health/ready`,
     `Swagger: ${baseUrl}/api/rag/v1/docs`,
-    '上传与 Mock 能力将在后续 T1.2–T1.4 启用'
+    '确定性 Mock 模型已启用；验收 Topic 与上传入口将在后续 T1.3–T1.4 启用'
   ];
 }
 

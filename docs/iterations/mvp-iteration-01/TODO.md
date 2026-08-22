@@ -60,7 +60,7 @@
   - 强制绑定 127.0.0.1，使用隔离 DATA_DIR。
   - 验收：干净环境运行一个命令即可启动；普通 npm start 行为不变。
 
-- [ ] **T1.2 实现确定性 Mock Embedding 与 Mock Chat**
+- [x] **T1.2 实现确定性 Mock Embedding 与 Mock Chat**
   - Mock 不访问网络，输出稳定、可重复并包含可验证 citation。
   - Mock 只通过 acceptance 启动入口依赖注入，不增加普通生产环境变量开关。
   - 模型 ID 和向量空间与真实模型完全隔离。
