@@ -1,34 +1,40 @@
-# API 基线
+# API 与调用契约
 
-公开版本路径为 `/api/rag/v1`。OpenAPI 3.1 文档由运行时代码生成：
+运行时生成的 OpenAPI 3.1 是接口真相源：`GET /api/rag/v1/openapi.json`；Swagger UI 为 `GET /api/rag/v1/docs`。除 `/api/chat` 外，稳定业务接口使用 `/api/rag/v1`。
 
-- JSON：`GET /api/rag/v1/openapi.json`
-- Swagger UI：`GET /api/rag/v1/docs`
+## 16 个公开端点
 
-## 健康检查
+| 方法 | 路径 | 鉴权 | 用途 |
+|---|---|---|---|
+| GET | `/health/live` | 无 | 进程存活 |
+| GET | `/health/ready` | 无 | SQLite、migration 与依赖注入就绪 |
+| POST | `/api/rag/v1/auth/browser-session` | 允许 Origin／同源 | 建立短期 HttpOnly 查询会话 |
+| GET | `/api/rag/v1/topics` | API Key／查询会话 | 查询 Topic；浏览器仅见 ACTIVE |
+| POST | `/api/rag/v1/topics` | API Key | 创建 DRAFT Topic |
+| PATCH | `/api/rag/v1/topics/{topicId}` | API Key | 编辑、启用或停用 Topic |
+| POST | `/api/rag/v1/documents` | API Key | 单文件上传并返回 QUEUED |
+| GET | `/api/rag/v1/documents` | API Key | Topic 文档列表 |
+| GET | `/api/rag/v1/documents/{documentId}` | API Key／查询会话 | 文档状态详情 |
+| POST | `/api/rag/v1/documents/{documentId}/publish` | API Key | READY → PUBLISHED |
+| POST | `/api/rag/v1/documents/{documentId}/disable` | API Key | PUBLISHED → DISABLED |
+| GET | `/api/rag/v1/documents/{documentId}/file` | API Key／查询会话 | 受控读取原文；浏览器仅可读 PUBLISHED |
+| GET | `/api/rag/v1/jobs/{jobId}` | API Key | 查询 QUEUED/PROCESSING/最终状态 |
+| POST | `/api/rag/v1/search` | API Key／查询会话 | 显式 Topic 内检索 PUBLISHED 证据 |
+| POST | `/api/rag/v1/chat` | API Key／查询会话 | 显式 Topic 严格问答 |
+| POST | `/api/chat` | API Key／查询会话 | 绑定服务端默认 Topic 的前端兼容入口 |
 
-- `GET /health/live`：进程存活即返回 200，不探测外部模型。
-- `GET /health/ready`：配置、数据目录、实例锁、SQLite 和 migration 完成后返回 200；初始化期间返回 503 `RAG_NOT_READY`。
+创建与编辑操作使用 `Idempotency-Key`；上传只接受一个 `file`。后端长期凭据只放在 `X-API-Key`，浏览器只使用 `rag_query_session` HttpOnly Cookie。
 
-## 后端 API Key
+## 问答状态
 
-后续管理接口只接受请求头 `X-API-Key`。Key 至少 32 字节、通过安全渠道分发、使用常量时间比较，禁止写入浏览器、日志和仓库。
+- `ANSWERED`：`answer` 中每个 claim 都带 `[n]`，`citations[n-1]` 提供 document、位置和原文摘要。
+- `NO_RELIABLE_EVIDENCE`：固定回答“知识库中未找到可靠依据，暂时无法回答该问题。”，citations 为空。
+- `BLOCKED`：输入触发安全阻断，citations 为空，且不调用 Chat 模型。
 
-## 浏览器查询会话
+模型输出 JSON、citation、本次候选、Topic、PUBLISHED 状态或当前 embedding 模型任一复核失败时，整题拒答；不返回流式或部分内容。
 
-允许的 Origin 调用 `POST /api/rag/v1/auth/browser-session` 后获得短期 Cookie。Cookie 为 HMAC 签名、Origin 绑定、`HttpOnly`、`SameSite=Strict`，默认 1 小时且最大 4 小时；HTTPS 请求同时设置 `Secure`。该会话只用于后续 query 类接口，不能调用管理接口。
+## 错误与超时
 
-## 错误结构
+错误结构固定为 `{errorCode, message, details, traceId}`。OpenAPI 的 `Error.errorCode.enum` 列出稳定错误码，包括鉴权、请求、Topic、文档、格式、容量、任务、模型、并发和内部错误。供应商正文、栈、内部路径和密钥不进入响应。
 
-所有错误固定为：
-
-```json
-{
-  "errorCode": "RAG_UNAUTHORIZED",
-  "message": "鉴权失败",
-  "details": {},
-  "traceId": "trace_xxx"
-}
-```
-
-响应不会包含栈、内部路径、API Key 或模型密钥。Topic、文档、search 和 chat 契约将在对应开发任务完成时加入同一 OpenAPI 文档。
+调用方超时建议：管理查询 5 秒，上传与 search 10 秒，chat 30 秒。只对网络错误、429 和明确的 503 做有限重试；写请求必须复用原 `Idempotency-Key`。加载、空状态、错误处理及 Swagger/PowerShell 主流程见 [HANDOFF.md](HANDOFF.md)。

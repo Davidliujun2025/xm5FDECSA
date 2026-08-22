@@ -134,7 +134,7 @@
 
 对应 PRD：US-04、Canonical Backend API、File and Ingestion Requirements。
 
-- [ ] **T3.1 保持 Swagger 后端验收主流程**
+- [x] **T3.1 保持 Swagger 后端验收主流程**
   - 校验 Topic 创建、激活、上传、Job、READY、发布、search/chat、file 的 OpenAPI。
   - README/HANDOFF 提供 Swagger 与 PowerShell 两种调用方式。
   - 验收：全部 16 个公开操作通过契约测试和真实 production DI E2E。

@@ -527,7 +527,19 @@ export function createOpenApiDocument(config) {
           additionalProperties: false,
           required: ['errorCode', 'message', 'details', 'traceId'],
           properties: {
-            errorCode: { type: 'string' },
+            errorCode: {
+              type: 'string',
+              enum: [
+                'RAG_UNAUTHORIZED', 'RAG_INVALID_REQUEST', 'RAG_TOPIC_NOT_FOUND', 'RAG_TOPIC_DISABLED',
+                'RAG_TOPIC_NOT_ACTIVE', 'RAG_TOPIC_NAME_CONFLICT', 'RAG_TOPIC_STATE_INVALID',
+                'RAG_DOCUMENT_NOT_FOUND', 'RAG_DOCUMENT_NOT_READY', 'RAG_DOCUMENT_STATE_CONFLICT',
+                'RAG_DUPLICATE_DOCUMENT', 'RAG_UNSUPPORTED_FORMAT', 'RAG_FILE_INVALID', 'RAG_FILE_TOO_LARGE',
+                'RAG_NO_TEXT_CONTENT', 'RAG_CAPACITY_LIMIT', 'RAG_JOB_FAILED', 'RAG_JOB_NOT_FOUND',
+                'RAG_MODEL_UNAVAILABLE', 'RAG_MODEL_OUTPUT_INVALID', 'RAG_MODEL_RATE_LIMITED', 'RAG_BUSY',
+                'RAG_BLOCKED_INPUT', 'RAG_NOT_READY', 'RAG_ORIGIN_FORBIDDEN', 'RAG_ROUTE_NOT_FOUND',
+                'RAG_REQUEST_TOO_LARGE', 'RAG_INTERNAL_ERROR'
+              ]
+            },
             message: { type: 'string' },
             details: { type: 'object' },
             traceId: { type: 'string' }
