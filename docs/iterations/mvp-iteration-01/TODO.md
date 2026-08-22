@@ -236,6 +236,9 @@
   - 要求 Draft 转 Ready、至少一次代码审查和 Windows CI 通过。
   - 第二台 Windows 不设置为 required check。
   - 验收：未通过 CI 的 PR 无法合并。
+  - ⏸ 暂缓：分支保护必须在 GitHub 远端配置，本轮约束「不执行一切推送到远端仓库的操作」。
+    配置清单已写入 `BRANCH_PROTECTION.md`；推送分支并创建 Draft PR 后由项目负责人按清单设置，
+    再勾选本项。
 
 ## 7. 全量验证与发布候选
 
