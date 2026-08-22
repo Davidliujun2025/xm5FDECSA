@@ -37,6 +37,7 @@ test('README enables a colleague to start Mock acceptance from a clean clone wit
   assert.ok(mockSection.includes('TEST_ACCEPTANCE_ONLY'));
   assert.ok(mockSection.includes('127.0.0.1:3000'));
   assert.ok(mockSection.includes('不得上传真实企业资料'));
+  assert.ok(mockSection.includes('acceptance-sample.md'));
   assert.ok(mockSection.includes('不会自动发布'));
 });
 

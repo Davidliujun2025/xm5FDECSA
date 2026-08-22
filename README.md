@@ -31,6 +31,7 @@ npm run acceptance
 
 验收流程：上传页选择 PDF/DOCX/XLSX/PPTX/MD/TXT 单文件（≤30MB，不得上传真实企业资料）→
 等待 Job 完成进入 READY → 点击「发布到测试知识库」→ 从问答页提问并核对引用与原文。
+没有测试文件时可使用仓库自带的脱敏样例 `examples/sample-documents/acceptance-sample.md`。
 上传后不会自动发布；Mock 只用于流程验收，不作为 AI 质量结论。端口被占用时设置
 `ACCEPTANCE_PORT` 换端口。
 
