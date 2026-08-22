@@ -262,7 +262,7 @@
   - 发布包不含依赖缓存、.env、data、日志、数据库或业务资料。
   - 验收：manifest 哈希、健康检查、Topic、search/chat、citation/file 复验通过。
 
-- [ ] **T7.5 最终 Git 安全审查**
+- [x] **T7.5 最终 Git 安全审查**
   - 执行 git status --short、git diff --check、git diff --cached --check。
   - 使用 git ls-files 检查禁止文件。
   - 人工阅读 staged diff，逐项确认删除。
