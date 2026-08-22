@@ -22,7 +22,7 @@ test('main flow, loading state and empty data directory become ready atomically'
   const runtime = await createRuntime({
     env: foundationEnv({ DATA_DIR: dataDir }),
     appRoot: APP_ROOT,
-    initializationDelayMs: 40,
+    initializationDelayMs: 500,
     registerRoutes: testRoutes
   });
   t.after(() => {
