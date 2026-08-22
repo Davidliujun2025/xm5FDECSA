@@ -91,6 +91,7 @@ test('Search API is Topic-scoped, publication-filtered, cached, stable and bound
       MODEL_BASE_URL: 'https://models.example.test/v1',
       MODEL_API_KEY: 'approved-model-key',
       EMBEDDING_MODEL: 'embed-approved-v1',
+      CHAT_MODEL: 'chat-approved-v1',
       MAX_CONCURRENT_REQUESTS: '1',
       EVIDENCE_THRESHOLD: '0.45'
     }),

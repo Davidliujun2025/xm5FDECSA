@@ -17,6 +17,7 @@ function configuredEnv(dataDir, overrides = {}) {
     MODEL_BASE_URL: 'https://models.example.test/v1',
     MODEL_API_KEY: 'approved-model-key',
     EMBEDDING_MODEL: 'embed-approved-v1',
+    CHAT_MODEL: 'chat-approved-v1',
     MODEL_CONNECT_TIMEOUT_SECONDS: '2',
     MODEL_TOTAL_TIMEOUT_SECONDS: '5',
     ...overrides
