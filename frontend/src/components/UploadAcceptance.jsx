@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import {
   getAcceptanceDocument,
@@ -7,6 +7,7 @@ import {
   publishAcceptanceDocument,
   uploadAcceptanceFile
 } from '../api/acceptance-client.js';
+import { extensionOf, formatBytes, preflightAcceptanceFile } from './acceptance-file.js';
 import '../styles/acceptance.css';
 
 const STAGES = [
@@ -31,17 +32,6 @@ const PHASE_ORDER = {
 
 const DEFAULT_FORMATS = ['PDF', 'DOCX', 'XLSX', 'PPTX', 'MD', 'TXT'];
 const DEFAULT_MAX_FILE_BYTES = 30 * 1024 * 1024;
-
-function formatBytes(bytes) {
-  if (!Number.isFinite(bytes)) return '—';
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / 1024 / 1024).toFixed(2)} MB`;
-}
-
-function extensionOf(fileName = '') {
-  return fileName.includes('.') ? fileName.split('.').pop().toUpperCase() : '';
-}
 
 function sleep(milliseconds) {
   return new Promise((resolve) => setTimeout(resolve, milliseconds));
@@ -75,11 +65,6 @@ export default function UploadAcceptance() {
     ? context.topicName?.trim() || '未提供验收 Topic'
     : error ? '验收 Topic 加载失败' : '正在准备…';
   const contextStatus = context?.topicStatus ?? (error ? 'ERROR' : 'LOADING');
-  const allowedExtensions = useMemo(
-    () => new Set(context?.supportedFormats ?? []),
-    [context]
-  );
-
   function reset() {
     setFile(null);
     setPhase('idle');
@@ -96,17 +81,11 @@ export default function UploadAcceptance() {
       reset();
       return;
     }
-    const extension = extensionOf(selectedFile.name);
-    if (!allowedExtensions.has(extension)) {
+    const preflight = preflightAcceptanceFile(selectedFile, context);
+    if (!preflight.ok) {
       setFile(null);
       setPhase('idle');
-      setError({ message: `不支持 .${extension.toLowerCase() || '未知'} 文件，请选择页面列出的格式。`, errorCode: 'LOCAL_FORMAT_CHECK' });
-      return;
-    }
-    if (selectedFile.size <= 0 || selectedFile.size > context.maxFileBytes) {
-      setFile(null);
-      setPhase('idle');
-      setError({ message: `文件必须大于 0 B 且不超过 ${formatBytes(context.maxFileBytes)}。`, errorCode: 'LOCAL_SIZE_CHECK' });
+      setError(preflight.error);
       return;
     }
     setFile(selectedFile);
