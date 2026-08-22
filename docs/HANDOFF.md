@@ -78,6 +78,26 @@ Invoke-WebRequest "$api/documents/$($upload.documentId)/file" -Headers $admin -O
 
 前端不得出现 API Key、模型 Key、会话签名密钥、`conversationId` 或 demo 业务答案。citation 原文链接使用相对 `/api/rag/v1/documents/{documentId}/file`。
 
+## 浏览器验收适配层（Mock acceptance）
+
+`/acceptance/upload` 页面与 `/api/acceptance` 接口是**验收适配层**：仅由 `npm run acceptance` 的
+acceptance profile 注册，内部只调用既有 Topic/Document/Job/发布/文件读取服务，不复制任何领域
+逻辑。公开稳定契约始终是 `/api/rag/v1` 的 16 个端点（OpenAPI 3.1），浏览器验收不替代后端
+契约验收。
+
+边界（全部由后端强制，前端不承担安全职责）：
+
+- 仅监听 `127.0.0.1`；写请求必须同源 Origin + 有效 HttpOnly 会话（`rag_query_session`），
+  缺 Cookie、错 Origin、非 loopback 一律失败；浏览器不接触长期 `X-API-Key`。
+- `/api/acceptance` 不写入公开 OpenAPI；在 local、team 或普通 production 模式一律 404。
+- Topic 隔离：跨 Topic 的 documentId/jobId 返回 404；发布只影响当前验收 Topic，不读取或
+  下载其他 Topic 文档。
+- 页面状态与后端一致：selected → uploaded → processing → ready → published；
+  `FAILED` 展示稳定 `errorCode`、`message` 与 `traceId`，可重新选择文件。Job 轮询上限 120 秒，
+  组件卸载后停止更新。
+- 无自动发布：上传成功停留在 `READY`，只有用户点击「发布到测试知识库」才进入 `PUBLISHED`，
+  发布前文档检索不到。
+
 ## 独立后端
 
 从安全环境变量读取 `RAG_API_KEY`，调用 `/api/rag/v1` 并显式提供 `topicId`。标准流程：创建/启用 Topic → 单文件上传 → 轮询 job → 发布 → search/chat → citation 对应 document/file。上传超时建议 10 秒，但解析通过 job 异步观察；chat 超时 30 秒。

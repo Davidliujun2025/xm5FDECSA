@@ -188,7 +188,7 @@
   - 明确前端问答必须绑定有效 FRONTEND_DEFAULT_TOPIC_ID，或由 acceptance bootstrap 自动绑定。
   - 验收：同伴只阅读 README 即可完成 Mock 启动。
 
-- [ ] **T5.2 更新 HANDOFF 与 API 文档**
+- [x] **T5.2 更新 HANDOFF 与 API 文档**
   - 说明浏览器上传页是验收适配层，后端公开契约仍为 /api/rag/v1。
   - 说明浏览器会话、API Key、Origin、Topic 和发布状态边界。
   - 验收：文档中的路径、状态和示例与 OpenAPI/实现一致。

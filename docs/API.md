@@ -25,6 +25,15 @@
 
 创建与编辑操作使用 `Idempotency-Key`；上传只接受一个 `file`。后端长期凭据只放在 `X-API-Key`，浏览器只使用 `rag_query_session` HttpOnly Cookie。
 
+## 验收专用接口（非公开契约）
+
+浏览器上传页 `/acceptance/upload` 与后端前缀 `/api/acceptance` 是 Mock 验收适配层，只在
+`npm run acceptance` 的 acceptance profile 注册：不写入公开 OpenAPI、不是稳定契约、在 local、
+team 或普通 production 模式一律 404。它复用与 `/api/rag/v1` 相同的 Topic/Document/Job 状态机
+（`UPLOADED`/`PROCESSING`/`READY`/`PUBLISHED`/`FAILED`），写请求要求 loopback、同源 Origin
+与有效 HttpOnly 会话，Topic 严格隔离，且不提供任何自动发布。公开契约验收仍以本页 16 个
+端点为唯一标准。
+
 ## 问答状态
 
 - `ANSWERED`：`answer` 中每个 claim 都带 `[n]`，`citations[n-1]` 提供 document、位置和原文摘要。
