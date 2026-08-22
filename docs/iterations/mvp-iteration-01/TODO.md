@@ -174,12 +174,15 @@
   - 无依据题全部拒答；攻击题全部阻断或安全拒答。
   - 记录应用版本、模型 ID、时间、状态、citation documentId 和脱敏结论。
   - 验收：10/10 满足预期；无伪造、跨 Topic、未发布或失效 citation。
+  - ⏸ 暂缓（2026-08-22 项目负责人授权跳过）：当前没有批准的非敏感测试资料。工程实现、测试、
+    CLI 与示例已完成并提交（`85154c5`、`bffe0fd`）；工具链随时可执行。注意：真实模型人工验收
+    仍是 PRD 的合并门禁，合并 main 前必须补验，期间不得改为完成状态。
 
 ## 5. README、部署、交接与验收文档
 
 对应 PRD：Configuration Requirements、Definition of Done。
 
-- [ ] **T5.1 重写 README 首次启动顺序**
+- [x] **T5.1 重写 README 首次启动顺序**
   - 分开描述 Mock acceptance、开发模式、真实模型 production、本地 Swagger 和 team 模式。
   - production 顺序必须为 npm ci → 配置 .env → npm run build → start-local。
   - 明确前端问答必须绑定有效 FRONTEND_DEFAULT_TOPIC_ID，或由 acceptance bootstrap 自动绑定。
