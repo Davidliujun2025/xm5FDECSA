@@ -78,7 +78,7 @@
   - 保留 loopback、同源 Origin、HttpOnly 会话和跨 Topic 404 防护。
   - 验收：acceptance 模式返回 context；其他模式请求 /api/acceptance/context 为 404。
 
-- [ ] **T1.5 保持人工发布门禁**
+- [x] **T1.5 保持人工发布门禁**
   - 上传成功仅进入 UPLOADED/PROCESSING/READY。
   - 只有用户显式操作才执行 READY → PUBLISHED。
   - 不允许 acceptance 路由发布其他 Topic 文档。
