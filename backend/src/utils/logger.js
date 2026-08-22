@@ -1,6 +1,6 @@
 import pino from 'pino';
 
-export function createLogger(config = {}) {
+export function createLogger(config = {}, destination) {
   return pino({
     level: config.nodeEnv === 'test' ? 'silent' : (process.env.LOG_LEVEL || 'info'),
     base: {
@@ -21,5 +21,5 @@ export function createLogger(config = {}) {
       ],
       censor: '[REDACTED]'
     }
-  });
+  }, destination);
 }
