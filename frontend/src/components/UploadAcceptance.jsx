@@ -9,6 +9,7 @@ import {
 } from '../api/acceptance-client.js';
 import { extensionOf, formatBytes, preflightAcceptanceFile } from './acceptance-file.js';
 import { pollAcceptanceJob } from './acceptance-polling.js';
+import { createAcceptancePublicationGate } from './acceptance-publication.js';
 import '../styles/acceptance.css';
 
 const STAGES = [
@@ -43,6 +44,10 @@ export default function UploadAcceptance() {
   const [error, setError] = useState(null);
   const mounted = useRef(true);
   const pollingAbort = useRef(null);
+  const publicationGate = useRef(null);
+  if (publicationGate.current === null) {
+    publicationGate.current = createAcceptancePublicationGate(publishAcceptanceDocument);
+  }
 
   useEffect(() => {
     const controller = new AbortController();
@@ -137,15 +142,19 @@ export default function UploadAcceptance() {
   }
 
   async function publish() {
-    if (!document?.documentId && !document?.id) return;
-    const documentId = document.documentId ?? document.id;
+    const documentId = document?.documentId ?? document?.id;
+    if (phase !== 'ready' || !documentId || publicationGate.current.isPublishing()) return;
     setError(null);
     setPhase('publishing');
     try {
-      const published = await publishAcceptanceDocument(documentId);
+      const published = await publicationGate.current.publish(documentId, {
+        signal: pollingAbort.current?.signal
+      });
+      if (!mounted.current) return;
       setDocument(published);
       setPhase('published');
     } catch (reason) {
+      if (!mounted.current) return;
       setError(reason);
       setPhase('ready');
     }
@@ -234,12 +243,24 @@ export default function UploadAcceptance() {
                 <p>任务成功只会进入 READY；点击发布后，文档才成为 PUBLISHED。</p>
               </div>
             </div>
-            <button className="publish-action" type="button" onClick={publish} disabled={phase !== 'ready'}>
+            <button
+              aria-busy={phase === 'publishing'}
+              className="publish-action"
+              type="button"
+              onClick={publish}
+              disabled={phase !== 'ready' || publicationGate.current.isPublishing()}
+            >
               {phase === 'publishing' ? '正在发布…' : phase === 'published' ? '已发布' : '发布到测试知识库'}
             </button>
+            {phase === 'ready' && (
+              <p className="publish-gate-note"><strong>READY</strong> 当前尚不可检索；请确认内容后手动发布，发布后可检索。</p>
+            )}
+            {phase === 'publishing' && (
+              <p className="publish-gate-note" role="status">正在提交发布请求，请勿重复操作。</p>
+            )}
             {phase === 'published' && documentId && (
-              <div className="publish-success">
-                <span>验收链路完成</span>
+              <div className="publish-success" role="status">
+                <span><strong>PUBLISHED</strong> 发布成功，文档现在可检索</span>
                 <a href={`/api/acceptance/documents/${encodeURIComponent(documentId)}/file`} target="_blank" rel="noreferrer">核对原文件</a>
               </div>
             )}

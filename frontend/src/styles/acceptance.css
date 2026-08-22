@@ -339,6 +339,20 @@
   width: 100%;
 }
 
+.publish-gate-note {
+  margin: 10px 0 0;
+  color: #5f7173;
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.publish-gate-note strong {
+  margin-right: 5px;
+  color: #176f72;
+  font-family: "Bahnschrift", "Consolas", monospace;
+  letter-spacing: 0.05em;
+}
+
 .publish-success {
   display: flex;
   align-items: center;
@@ -349,6 +363,12 @@
   color: #175749;
   background: #dff3e9;
   font-weight: 800;
+}
+
+.publish-success strong {
+  margin-right: 5px;
+  font-family: "Bahnschrift", "Consolas", monospace;
+  letter-spacing: 0.04em;
 }
 
 .publish-success a {

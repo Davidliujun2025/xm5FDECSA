@@ -55,6 +55,9 @@ export function getAcceptanceDocument(documentId, options = {}) {
   return requestAcceptance(`/documents/${encodeURIComponent(documentId)}`, options);
 }
 
-export function publishAcceptanceDocument(documentId) {
-  return requestAcceptance(`/documents/${encodeURIComponent(documentId)}/publish`, { method: 'POST' });
+export function publishAcceptanceDocument(documentId, options = {}) {
+  return requestAcceptance(`/documents/${encodeURIComponent(documentId)}/publish`, {
+    ...options,
+    method: 'POST'
+  });
 }
