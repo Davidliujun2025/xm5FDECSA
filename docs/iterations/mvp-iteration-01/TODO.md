@@ -257,7 +257,7 @@
   - 从 README 运行 Mock acceptance，记录开始与完成时间。
   - 验收：15 分钟内页面就绪并完成浏览器全链路。
 
-- [ ] **T7.4 验证发布包和备份恢复**
+- [x] **T7.4 验证发布包和备份恢复**
   - 执行 release/package 与本机隔离目录恢复测试。
   - 发布包不含依赖缓存、.env、data、日志、数据库或业务资料。
   - 验收：manifest 哈希、健康检查、Topic、search/chat、citation/file 复验通过。

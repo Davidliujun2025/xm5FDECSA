@@ -23,8 +23,9 @@
 | 前端生产构建 | 通过（vite build，39 modules） |
 | 安全扫描 | `SECURITY_SCAN_PASSED`，扫描 204 个文件（文本 191、前端 bundle 3，`9f45d39` 基线时点） |
 | 禁止跟踪文件检查 | 通过（verify 内含；Git 跟踪文件无密钥、data、SQLite、日志或构建产物） |
-| 发布包测试 | `release-package.test.js` 通过（隔离目录、白名单、manifest） |
+| 发布包测试 | `release-package.test.js` 通过（隔离目录、白名单、manifest）；`npm run release` 实测 RELEASE_CREATED（109 文件，内含完整 verify） |
 | 备份恢复测试 | `backup-restore.test.js` 通过（停服备份、新目录恢复、citation/file 复验） |
+| 干净安装预演 | `test-portable-release.ps1 -InstallDependencies`：两个隔离目录分别 `npm ci`、启动 ready=200、前端=200，合计 2 分 21 秒 |
 | 黄金集 | `npm run eval` 通过：Recall@5 100%、citation 正确率 100%、有依据回答率 100%、无依据拒答率 100%、攻击阻断率 100%、非法 citation 0 |
 | 性能基线 | `npm run performance` 通过：上传 P95 14.92ms、search P95 5.03ms、chat P95 5.82ms、发布/停用 22.75ms |
 | CI 链接 | 待 T6：分支尚未推送，暂无 CI 运行记录 |
