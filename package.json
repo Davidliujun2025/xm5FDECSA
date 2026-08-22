@@ -18,8 +18,11 @@
     "acceptance": "node scripts/start-acceptance.js",
     "test": "node --test \"tests/**/*.test.js\"",
     "build": "npm run build --workspace frontend",
+    "eval": "node evals/run-golden-set.js",
+    "performance": "node evals/run-performance.js",
     "security-scan": "node scripts/security-scan.js",
-    "verify": "powershell -ExecutionPolicy Bypass -File scripts/verify.ps1"
+    "verify": "powershell -ExecutionPolicy Bypass -File scripts/verify.ps1",
+    "release": "powershell -ExecutionPolicy Bypass -File scripts/package-release.ps1"
   },
   "devDependencies": {
     "supertest": "7.1.4"
