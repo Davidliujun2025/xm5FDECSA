@@ -3,7 +3,7 @@
 | 字段 | 内容 |
 |---|---|
 | 来源 PRD | docs/iterations/mvp-iteration-01/PRD.md |
-| 迭代目标 | 私有 GitHub 协作交付、浏览器上传验收、Mock 自动化、真实模型人工问答验收 |
+| 迭代目标 | 现有 GitHub 过渡仓库协作交付、浏览器上传验收、Mock 自动化、真实模型人工问答验收 |
 | 工作仓库 | 当前内层应用仓库，不是外层规划仓库 |
 | 工作分支 | codex/acceptance-handoff |
 | 合并目标 | main |
@@ -29,11 +29,11 @@
   - 确认分支包含当前 main 领先 origin/main 的 7 个提交。
   - 验收：git status --short --branch 显示正确分支，不改变外层仓库。
 
-- [ ] **T0.2 确认 GitHub 远端和权限**
+- [x] **T0.2 确认 GitHub 远端和权限**
   - 确认 origin 指向 Davidliujun2025/xm5FDECSA。
   - 通过项目负责人账号完成 GitHub 登录和网络连接。
-  - 在 GitHub 确认仓库为 Private，只邀请指定同伴。
-  - 验收：git ls-remote --symref origin HEAD 成功；不在日志中输出令牌。
+  - 沿用仓库当前可见性，不执行 Public/Private 切换；只确认参与同伴具备当前协作流程所需权限。
+  - 验收：git ls-remote --symref origin HEAD 成功；可见性未被修改；不在日志中输出令牌。
 
 - [ ] **T0.3 逐项审查当前工作区**
   - 为所有 modified、deleted、untracked 文件标记“保留、删除、重命名、暂不提交”。
@@ -287,7 +287,7 @@
   - 验收：所有 required checks 通过，审查意见关闭。
 
 - [ ] **T8.5 合并 main**
-  - 合并前确认真实模型 10 题通过、仓库 Private、无密钥和业务资料。
+  - 合并前确认真实模型 10 题通过、仓库可见性保持不变、无密钥和业务资料。
   - 第二台 Windows 未执行不阻塞合并，只建立 v1.1 Issue。
   - 验收：main 包含本轮 PR，发布说明和回滚点明确。
 
