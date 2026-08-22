@@ -35,7 +35,7 @@
   - 沿用仓库当前可见性，不执行 Public/Private 切换；只确认参与同伴具备当前协作流程所需权限。
   - 验收：git ls-remote --symref origin HEAD 成功；可见性未被修改；不在日志中输出令牌。
 
-- [ ] **T0.3 逐项审查当前工作区**
+- [x] **T0.3 逐项审查当前工作区**
   - 为所有 modified、deleted、untracked 文件标记“保留、删除、重命名、暂不提交”。
   - 特别复核 backend/.env.example、旧 service/validator、demo、旧测试和旧脚本的删除是否确属废弃。
   - 验收：形成 PR 描述中的文件变更清单；无意外删除。
