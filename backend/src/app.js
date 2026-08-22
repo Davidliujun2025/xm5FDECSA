@@ -150,7 +150,7 @@ export function createApp({ config, readiness, fileStore, logger, registerRoutes
   return app;
 }
 
-export async function createRuntime({ env = process.env, appRoot = APP_ROOT, logger, initializationDelayMs = 0, registerRoutes, embeddingFetch, chatFetch, modelProvider } = {}) {
+export async function createRuntime({ env = process.env, appRoot = APP_ROOT, logger, initializationDelayMs = 0, registerRoutes, embeddingFetch, chatFetch, modelProvider, runtimeBootstrap } = {}) {
   const baseConfig = loadConfig(env, { appRoot });
   if (modelProvider && (
     typeof modelProvider.configure !== 'function'
@@ -158,6 +158,9 @@ export async function createRuntime({ env = process.env, appRoot = APP_ROOT, log
     || typeof modelProvider.createChatClient !== 'function'
   )) {
     throw new TypeError('modelProvider must configure and create both model clients');
+  }
+  if (runtimeBootstrap !== undefined && typeof runtimeBootstrap !== 'function') {
+    throw new TypeError('runtimeBootstrap must be a function');
   }
   const config = modelProvider ? modelProvider.configure(baseConfig) : baseConfig;
   const appLogger = logger ?? createLogger(config);
@@ -249,6 +252,9 @@ export async function createRuntime({ env = process.env, appRoot = APP_ROOT, log
       app.locals.documentService = new DocumentService(documentRepository, fileStore, {
         onJobQueued: () => jobLoop?.wake()
       });
+      if (runtimeBootstrap) {
+        await runtimeBootstrap({ app, config, database });
+      }
       jobLoop?.start();
       readiness.markReady();
       appLogger.info({ operation: 'runtime.initialize', result: 'ready' }, 'runtime ready');

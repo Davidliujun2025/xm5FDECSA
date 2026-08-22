@@ -34,9 +34,9 @@ export class TopicService {
     return this.repository.list({ includeInactive }).map(topicToResponse);
   }
 
-  createTopic(input, idempotencyKey) {
+  createTopic(input, idempotencyKey, { idGenerator } = {}) {
     const key = requireIdempotencyKey(idempotencyKey);
-    const draft = createDraftTopic(input);
+    const draft = createDraftTopic(input, idGenerator ? { idGenerator } : undefined);
     const normalizedRequest = { name: draft.name, description: draft.description };
     const result = this.repository.executeIdempotent({
       key,

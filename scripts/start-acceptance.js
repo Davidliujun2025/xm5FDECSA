@@ -3,6 +3,10 @@ import { randomBytes } from 'node:crypto';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import {
+  ACCEPTANCE_TOPIC_ID,
+  createAcceptanceTopicBootstrap
+} from '../backend/src/acceptance/topic-bootstrap.js';
 import { APP_ROOT, startServer } from '../backend/src/app.js';
 import { createAcceptanceModelProvider } from '../backend/src/adapters/models/acceptance-models.js';
 
@@ -40,7 +44,7 @@ export function createAcceptanceEnvironment({
     RAG_PORT: String(port),
     RAG_API_KEY: `acceptance_api_${apiSecret}`,
     FRONTEND_SESSION_SECRET: `acceptance_session_${sessionSecret}`,
-    FRONTEND_DEFAULT_TOPIC_ID: '',
+    FRONTEND_DEFAULT_TOPIC_ID: ACCEPTANCE_TOPIC_ID,
     FRONTEND_DIST_DIR: './frontend/dist',
     CORS_ORIGINS: `http://127.0.0.1:${port}`,
     DATA_DIR: path.resolve(dataDir),
@@ -101,11 +105,13 @@ export async function startAcceptance({
 } = {}) {
   await build(appRoot);
   const env = createAcceptanceEnvironment({ appRoot, baseEnv });
+  const acceptanceContext = { topicId: null, topicName: null, topicStatus: null };
   return start({
     ...runtimeOptions,
     appRoot,
     env,
-    modelProvider: createAcceptanceModelProvider()
+    modelProvider: createAcceptanceModelProvider(),
+    runtimeBootstrap: createAcceptanceTopicBootstrap({ context: acceptanceContext })
   });
 }
 
@@ -129,7 +135,7 @@ function acceptanceUrls(port) {
     `问答页: ${baseUrl}/`,
     `健康检查: ${baseUrl}/health/ready`,
     `Swagger: ${baseUrl}/api/rag/v1/docs`,
-    '确定性 Mock 模型已启用；验收 Topic 与上传入口将在后续 T1.3–T1.4 启用'
+    '确定性 Mock 模型与验收 Topic 已就绪；上传入口将在后续 T1.4 启用'
   ];
 }
 

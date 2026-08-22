@@ -6,6 +6,7 @@ import { test } from 'node:test';
 
 import { APP_ROOT, createRuntime } from '../../backend/src/app.js';
 import { ACCEPTANCE_MODEL_KIND } from '../../backend/src/adapters/models/acceptance-models.js';
+import { ACCEPTANCE_TOPIC_ID } from '../../backend/src/acceptance/topic-bootstrap.js';
 import { foundationEnv } from '../helpers/foundation.js';
 import {
   createAcceptanceEnvironment,
@@ -38,6 +39,7 @@ test('acceptance environment forces loopback, isolated data and no real model co
   assert.equal(env.RAG_HOST, '127.0.0.1');
   assert.equal(env.RAG_PORT, '3210');
   assert.equal(env.DATA_DIR, path.join(appRoot, 'data', 'acceptance'));
+  assert.equal(env.FRONTEND_DEFAULT_TOPIC_ID, ACCEPTANCE_TOPIC_ID);
   assert.equal(env.MODEL_BASE_URL, '');
   assert.equal(env.MODEL_API_KEY, '');
   assert.equal(env.EMBEDDING_MODEL, '');
@@ -57,6 +59,8 @@ test('acceptance entry builds before starting and preserves ordinary start injec
       assert.equal(options.env.RAG_HOST, '127.0.0.1');
       assert.match(options.env.DATA_DIR, /data[\\/]acceptance$/);
       assert.equal(options.modelProvider.kind, ACCEPTANCE_MODEL_KIND);
+      assert.equal(options.env.FRONTEND_DEFAULT_TOPIC_ID, ACCEPTANCE_TOPIC_ID);
+      assert.equal(typeof options.runtimeBootstrap, 'function');
       return { runtime: { config: { port: 3211 } } };
     }
   });
@@ -83,6 +87,7 @@ test('ordinary runtime with acceptance-shaped environment still has no implicit 
   assert.equal(runtime.config.model.embeddingConfigured, false);
   assert.equal(runtime.app.locals.retrievalService, undefined);
   assert.equal(runtime.app.locals.answerService, undefined);
+  assert.equal(runtime.database.prepare('SELECT COUNT(*) AS count FROM topic').get().count, 0);
 });
 
 test('ordinary team runtime without real model configuration has no Mock fallback', async (t) => {
@@ -107,6 +112,7 @@ test('ordinary team runtime without real model configuration has no Mock fallbac
   assert.equal(runtime.config.model.embeddingConfigured, false);
   assert.equal(runtime.app.locals.retrievalService, undefined);
   assert.equal(runtime.app.locals.answerService, undefined);
+  assert.equal(runtime.database.prepare('SELECT COUNT(*) AS count FROM topic').get().count, 0);
 });
 
 test('acceptance entry rejects invalid ports and emits actionable safe startup errors', () => {
