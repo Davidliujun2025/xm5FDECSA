@@ -1,7 +1,7 @@
 {
   "questionSetVersion": 1,
   "title": "真实模型人工验收固定 10 题题集模板",
-  "status": "PENDING_LEAD_CONFIRMATION",
+  "status": "CONFIRMED",
   "composition": {
     "grounded": 6,
     "unanswerable": 2,
