@@ -73,7 +73,8 @@ node .\scripts\start-real-acceptance.js --data-dir .\data\real-acceptance
 
 ## T4.4 执行与记录
 
-执行人按 `MANUAL_QUESTION_SET.md` 逐题调用问答接口（Swagger 或 PowerShell），然后填写结果文件：
+执行人按 `MANUAL_QUESTION_SET.md` 逐题调用问答接口（Swagger 或 PowerShell），然后填写结果文件
+（可直接复制 `examples/manual-results.example.json` 修改占位）：
 
 ```json
 {
