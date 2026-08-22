@@ -54,7 +54,7 @@
 
 对应 PRD：US-01、US-02、US-03、Model Mode Requirements、Acceptance Bootstrap。
 
-- [ ] **T1.1 定义正式 acceptance 启动入口**
+- [x] **T1.1 定义正式 acceptance 启动入口**
   - 在 package.json 增加 npm run acceptance。
   - 使用受版本控制的启动脚本，不依赖任何 .codex-tmp-* 文件。
   - 强制绑定 127.0.0.1，使用隔离 DATA_DIR。
