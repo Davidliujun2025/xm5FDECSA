@@ -9,6 +9,7 @@ import {
 } from '../backend/src/acceptance/topic-bootstrap.js';
 import { APP_ROOT, startServer } from '../backend/src/app.js';
 import { createAcceptanceModelProvider } from '../backend/src/adapters/models/acceptance-models.js';
+import { createLocalAcceptanceRouter } from '../backend/src/routes/local-acceptance.js';
 
 const DEFAULT_PORT = 3000;
 const ACCEPTANCE_DATA_PATH = path.join('data', 'acceptance');
@@ -96,6 +97,15 @@ export function runFrontendBuild(appRoot = APP_ROOT) {
   });
 }
 
+export function createAcceptanceRouteRegistrar(context) {
+  if (!context || typeof context !== 'object' || Array.isArray(context)) {
+    throw new TypeError('acceptance route context must be an object');
+  }
+  return (app, auth, fileStore) => {
+    app.use('/api/acceptance', createLocalAcceptanceRouter({ auth, fileStore, context }));
+  };
+}
+
 export async function startAcceptance({
   appRoot = APP_ROOT,
   baseEnv = process.env,
@@ -111,7 +121,8 @@ export async function startAcceptance({
     appRoot,
     env,
     modelProvider: createAcceptanceModelProvider(),
-    runtimeBootstrap: createAcceptanceTopicBootstrap({ context: acceptanceContext })
+    runtimeBootstrap: createAcceptanceTopicBootstrap({ context: acceptanceContext }),
+    registerRoutes: createAcceptanceRouteRegistrar(acceptanceContext)
   });
 }
 
@@ -135,7 +146,7 @@ function acceptanceUrls(port) {
     `问答页: ${baseUrl}/`,
     `健康检查: ${baseUrl}/health/ready`,
     `Swagger: ${baseUrl}/api/rag/v1/docs`,
-    '确定性 Mock 模型与验收 Topic 已就绪；上传入口将在后续 T1.4 启用'
+    `上传页: ${baseUrl}/acceptance/upload`
   ];
 }
 

@@ -72,7 +72,7 @@
   - 自动将前端问答绑定到该 Topic，但不得把此逻辑扩展为业务 Topic 自动审批。
   - 验收：连续启动两次 Topic 数不增加；问答与上传使用同一 topicId。
 
-- [ ] **T1.4 正式挂载 /api/acceptance**
+- [x] **T1.4 正式挂载 /api/acceptance**
   - 仅 acceptance 模式注册 createLocalAcceptanceRouter。
   - 普通 local、team、production 和 OpenAPI 均不暴露该路由。
   - 保留 loopback、同源 Origin、HttpOnly 会话和跨 Topic 404 防护。

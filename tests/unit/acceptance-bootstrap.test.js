@@ -61,6 +61,7 @@ test('acceptance entry builds before starting and preserves ordinary start injec
       assert.equal(options.modelProvider.kind, ACCEPTANCE_MODEL_KIND);
       assert.equal(options.env.FRONTEND_DEFAULT_TOPIC_ID, ACCEPTANCE_TOPIC_ID);
       assert.equal(typeof options.runtimeBootstrap, 'function');
+      assert.equal(typeof options.registerRoutes, 'function');
       return { runtime: { config: { port: 3211 } } };
     }
   });

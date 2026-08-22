@@ -131,7 +131,7 @@ export function createApp({ config, readiness, fileStore, logger, registerRoutes
   }));
 
   if (registerRoutes) {
-    registerRoutes(app, auth);
+    registerRoutes(app, auth, fileStore);
   }
 
   if (config.nodeEnv === 'production' && existsSync(config.frontendDistDir)) {
