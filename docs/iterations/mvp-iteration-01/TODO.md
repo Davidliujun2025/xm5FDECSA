@@ -212,7 +212,7 @@
 
 对应 PRD：US-06、CI and Quality Gates、Merge and Release Policy。
 
-- [ ] **T6.1 修复 Node 版本**
+- [x] **T6.1 修复 Node 版本**
   - actions/setup-node 使用 Node.js 24，与 package.json engines 一致。
   - 验收：CI 不再使用 Node 22。
 
