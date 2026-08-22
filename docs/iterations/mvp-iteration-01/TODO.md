@@ -109,7 +109,7 @@
   - 检查扩展名、非空和大小；服务端继续作为最终校验真相源。
   - 验收：不支持格式和超限文件在发起请求前给出可读提示。
 
-- [ ] **T2.3 完成五阶段状态流**
+- [x] **T2.3 完成五阶段状态流**
   - selected、uploaded、processing、ready、published 状态与后端一致。
   - Job 轮询间隔受控，最长 120 秒，组件卸载后停止更新。
   - FAILED 显示 errorCode、message、traceId；允许选择新文件重新开始。

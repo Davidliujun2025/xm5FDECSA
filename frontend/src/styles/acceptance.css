@@ -328,6 +328,13 @@
   letter-spacing: 0.05em;
 }
 
+.acceptance-error code {
+  overflow-wrap: anywhere;
+  color: #87514e;
+  font-family: "Bahnschrift", "Consolas", monospace;
+  font-size: 11px;
+}
+
 .publish-action {
   width: 100%;
 }

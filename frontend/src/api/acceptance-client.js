@@ -24,14 +24,17 @@ async function requestAcceptance(path, options = {}) {
     throw new RagApiError('无法连接本机验收服务');
   }
   const body = await parseResponse(response);
+  const traceId = body?.traceId || response.headers.get('x-trace-id') || null;
   if (!response.ok) {
     throw new RagApiError(body?.message || '验收操作失败', {
       status: response.status,
       errorCode: body?.errorCode || 'RAG_API_ERROR',
-      traceId: body?.traceId
+      traceId
     });
   }
-  return body;
+  return body && typeof body === 'object' && !Array.isArray(body)
+    ? { ...body, traceId }
+    : body;
 }
 
 export function loadAcceptanceContext() {
@@ -44,12 +47,12 @@ export function uploadAcceptanceFile(file) {
   return requestAcceptance('/documents', { method: 'POST', body: form });
 }
 
-export function getAcceptanceJob(jobId) {
-  return requestAcceptance(`/jobs/${encodeURIComponent(jobId)}`);
+export function getAcceptanceJob(jobId, options = {}) {
+  return requestAcceptance(`/jobs/${encodeURIComponent(jobId)}`, options);
 }
 
-export function getAcceptanceDocument(documentId) {
-  return requestAcceptance(`/documents/${encodeURIComponent(documentId)}`);
+export function getAcceptanceDocument(documentId, options = {}) {
+  return requestAcceptance(`/documents/${encodeURIComponent(documentId)}`, options);
 }
 
 export function publishAcceptanceDocument(documentId) {

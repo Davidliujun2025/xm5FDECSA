@@ -8,6 +8,7 @@ import {
   uploadAcceptanceFile
 } from '../api/acceptance-client.js';
 import { extensionOf, formatBytes, preflightAcceptanceFile } from './acceptance-file.js';
+import { pollAcceptanceJob } from './acceptance-polling.js';
 import '../styles/acceptance.css';
 
 const STAGES = [
@@ -33,10 +34,6 @@ const PHASE_ORDER = {
 const DEFAULT_FORMATS = ['PDF', 'DOCX', 'XLSX', 'PPTX', 'MD', 'TXT'];
 const DEFAULT_MAX_FILE_BYTES = 30 * 1024 * 1024;
 
-function sleep(milliseconds) {
-  return new Promise((resolve) => setTimeout(resolve, milliseconds));
-}
-
 export default function UploadAcceptance() {
   const [context, setContext] = useState(null);
   const [file, setFile] = useState(null);
@@ -45,14 +42,21 @@ export default function UploadAcceptance() {
   const [document, setDocument] = useState(null);
   const [error, setError] = useState(null);
   const mounted = useRef(true);
+  const pollingAbort = useRef(null);
 
   useEffect(() => {
+    const controller = new AbortController();
     mounted.current = true;
+    pollingAbort.current = controller;
     loadAcceptanceContext()
       .then((value) => mounted.current && setContext(value))
       .catch((reason) => mounted.current && setError(reason));
     return () => {
       mounted.current = false;
+      controller.abort();
+      if (pollingAbort.current === controller) {
+        pollingAbort.current = null;
+      }
     };
   }, []);
 
@@ -99,26 +103,19 @@ export default function UploadAcceptance() {
   }
 
   async function waitForJob(jobId, documentId) {
-    const deadline = Date.now() + 120000;
-    while (mounted.current && Date.now() < deadline) {
-      const currentJob = await getAcceptanceJob(jobId);
-      if (!mounted.current) return;
-      setJob(currentJob);
-      if (currentJob.status === 'SUCCEEDED') {
-        const currentDocument = await getAcceptanceDocument(documentId);
-        if (!mounted.current) return;
-        setDocument(currentDocument);
-        setPhase('ready');
-        return;
-      }
-      if (currentJob.status === 'FAILED') {
-        const failure = new Error(currentJob.errorMessage || '文档处理失败');
-        failure.errorCode = currentJob.errorCode || 'RAG_INGESTION_FAILED';
-        throw failure;
-      }
-      await sleep(650);
+    const result = await pollAcceptanceJob({
+      jobId,
+      documentId,
+      fetchJob: getAcceptanceJob,
+      fetchDocument: getAcceptanceDocument,
+      isActive: () => mounted.current,
+      onJob: setJob,
+      onPhase: setPhase,
+      signal: pollingAbort.current?.signal
+    });
+    if (result.status === 'READY' && mounted.current) {
+      setDocument(result.document);
     }
-    throw Object.assign(new Error('等待解析结果超时，请检查任务状态。'), { errorCode: 'LOCAL_POLL_TIMEOUT' });
   }
 
   async function startUpload() {
@@ -127,13 +124,13 @@ export default function UploadAcceptance() {
     setPhase('uploading');
     try {
       const accepted = await uploadAcceptanceFile(file);
+      if (!mounted.current) return;
       setJob({ id: accepted.jobId, status: accepted.jobStatus, stage: 'QUEUED' });
       setDocument({ id: accepted.documentId, status: accepted.status, fileName: file.name });
       setPhase('uploaded');
-      await sleep(280);
-      setPhase('processing');
       await waitForJob(accepted.jobId, accepted.documentId);
     } catch (reason) {
+      if (!mounted.current) return;
       setError(reason);
       setPhase('failed');
     }
@@ -215,6 +212,7 @@ export default function UploadAcceptance() {
               <div className="acceptance-error" role="alert">
                 <strong>{error.errorCode || 'UPLOAD_FAILED'}</strong>
                 <span>{error.message}</span>
+                {error.traceId && <code>traceId: {error.traceId}</code>}
               </div>
             )}
 
