@@ -98,7 +98,7 @@
 
 对应 PRD：US-02、US-03、Browser Acceptance Interface。
 
-- [ ] **T2.1 完成 /acceptance/upload 正式页面**
+- [x] **T2.1 完成 /acceptance/upload 正式页面**
   - 页面顶部展示 MOCK / LOCAL ACCEPTANCE。
   - 展示验收 Topic、支持格式、30MB 限制和禁止真实企业资料提示。
   - 从问答页可发现上传入口；上传页可返回问答页。

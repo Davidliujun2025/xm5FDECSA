@@ -227,6 +227,8 @@ test('production serves frontend after API routes and permits same-origin browse
     rmSync(root, { recursive: true, force: true });
   });
   await request(runtime.app).get('/').set('Accept', 'text/html').expect(200).expect(/same-origin-rag-ui/);
+  await request(runtime.app).get('/acceptance/upload').set('Accept', 'text/html').expect(200).expect(/same-origin-rag-ui/);
+  await request(runtime.app).get('/acceptance/upload').set('Accept', 'text/html').expect(200).expect(/same-origin-rag-ui/);
   await request(runtime.app).get('/api/unknown').set('Accept', 'text/html').expect(404).expect('Content-Type', /json/);
   await request(runtime.app).post('/api/rag/v1/auth/browser-session')
     .set('Host', '127.0.0.1:3000')

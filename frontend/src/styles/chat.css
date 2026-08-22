@@ -56,6 +56,7 @@ body {
 }
 
 .header-copy {
+  flex: 1 1 auto;
   min-width: 0;
 }
 
@@ -75,6 +76,30 @@ body {
   margin-top: 2px;
   font-size: 12px;
   color: #b7ced3;
+}
+
+.chat-header-actions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 7px;
+  margin-left: auto;
+}
+
+.acceptance-entry {
+  padding: 7px 8px;
+  color: #dff4ef;
+  border: 1px solid rgba(223, 244, 239, 0.42);
+  border-radius: 7px;
+  font-size: 11px;
+  font-weight: 700;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.acceptance-entry:hover {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.12);
 }
 
 .status-dot {
@@ -98,7 +123,6 @@ body {
   place-items: center;
   width: 34px;
   height: 34px;
-  margin-left: auto;
   padding: 0;
   color: #ffffff;
   background: rgba(255, 255, 255, 0.12);
@@ -113,6 +137,7 @@ body {
 }
 
 .close-button:focus-visible,
+.acceptance-entry:focus-visible,
 .send-button:focus-visible,
 .chat-reopen:focus-visible {
   outline: 3px solid rgba(18, 52, 63, 0.35);

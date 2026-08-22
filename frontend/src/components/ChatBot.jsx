@@ -100,18 +100,21 @@ export default function ChatBot() {
             {sessionState === 'loading' ? '正在连接' : sessionState === 'error' ? '连接异常' : '知识库在线'}
           </div>
         </div>
-        <button
-          className="close-button"
-          type="button"
-          onClick={() => setIsClosed(true)}
-          title="关闭"
-          aria-label="关闭"
-        >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-            <path d="M18 6 6 18" />
-            <path d="m6 6 12 12" />
-          </svg>
-        </button>
+        <nav className="chat-header-actions" aria-label="知识库页面">
+          <a className="acceptance-entry" href="/acceptance/upload">上传资料</a>
+          <button
+            className="close-button"
+            type="button"
+            onClick={() => setIsClosed(true)}
+            title="关闭"
+            aria-label="关闭"
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M18 6 6 18" />
+              <path d="m6 6 12 12" />
+            </svg>
+          </button>
+        </nav>
       </header>
 
       <MessageList messages={messages} isTyping={isTyping} listRef={messageListRef} />
