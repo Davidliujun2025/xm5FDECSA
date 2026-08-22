@@ -17,7 +17,8 @@
     "start": "npm run start --workspace backend",
     "test": "node --test \"tests/**/*.test.js\"",
     "build": "npm run build --workspace frontend",
-    "verify": "npm test && npm run build"
+    "security-scan": "node scripts/security-scan.js",
+    "verify": "powershell -ExecutionPolicy Bypass -File scripts/verify.ps1"
   },
   "devDependencies": {
     "supertest": "7.1.4"

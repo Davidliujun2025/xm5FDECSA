@@ -45,7 +45,7 @@
   - 保持 node_modules、frontend/dist、coverage、artifacts、data、.env、数据库和日志在 .gitignore 中。
   - 验收：git diff --check 无错误；不再出现大面积无意义行尾差异。
 
-- [ ] **T0.5 建立禁止跟踪文件门禁**
+- [x] **T0.5 建立禁止跟踪文件门禁**
   - 扩展 verify/security-scan，检查 .env、data、数据库、密钥、企业文档、日志和发布包。
   - 明确测试 fixture 必须为合成或脱敏内容。
   - 验收：故意放入临时禁止文件时门禁失败，删除后恢复通过；临时文件不得提交。
