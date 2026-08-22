@@ -226,7 +226,7 @@
   - 验证 acceptance route、上传、READY、人工发布、问答和引用。
   - 验收：断网或无模型密钥情况下稳定通过。
 
-- [ ] **T6.4 收紧 CI 安全检查**
+- [x] **T6.4 收紧 CI 安全检查**
   - 运行 security-scan、禁止跟踪文件检查和 git diff --check。
   - CI 日志与 artifact 不包含 .env、data、数据库、原文和密钥。
   - 验收：注入一个测试秘密时 CI 必须失败。

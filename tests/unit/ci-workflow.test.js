@@ -36,3 +36,11 @@ test('CI workflow runs the Mock browser acceptance E2E files that exist in the r
   }
   assert.ok(files.includes('tests/integration/sample-upload.test.js'), '端到端未覆盖仓库自带样例');
 });
+
+test('CI workflow enforces the whitespace and secret gates without leaking artifacts', () => {
+  assert.ok(workflow.includes('git diff --check'));
+  assert.ok(workflow.includes('git merge-base HEAD origin/main'));
+  assert.ok(workflow.includes('npm run verify'), 'verify 未作为门禁（内含安全扫描与禁止文件检查）');
+  assert.ok(!/MODEL_API_KEY|RAG_API_KEY|X-API-Key\s*[=:]\s*\S+/.test(workflow), 'workflow 疑似包含密钥');
+  assert.ok(!workflow.includes('.env'), 'workflow 不应依赖 .env');
+});
