@@ -1,0 +1,20 @@
+{
+  "iterations": 20,
+  "thresholdsMs": {
+    "uploadP95": 2000,
+    "searchP95": 5000,
+    "chatP95": 20000,
+    "publishDisableEffective": 10000
+  },
+  "metricsMs": {
+    "uploadP95": 13.72,
+    "searchP95": 3.45,
+    "chatP95": 3.79,
+    "publishDisableEffective": 20.03
+  },
+  "publicationVisibility": {
+    "publishedVisible": true,
+    "disabledHidden": true
+  },
+  "passed": true
+}

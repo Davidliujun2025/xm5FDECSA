@@ -248,7 +248,7 @@
   - 执行 npm run verify。
   - 验收：全部测试通过、前端 build 成功、安全扫描通过、禁止文件检查通过。
 
-- [ ] **T7.2 运行 AI 与性能基线**
+- [x] **T7.2 运行 AI 与性能基线**
   - 执行 npm run eval 和 npm run performance。
   - 验收：黄金集达到 KPI-04；性能不低于现有 MVP 门槛。
 

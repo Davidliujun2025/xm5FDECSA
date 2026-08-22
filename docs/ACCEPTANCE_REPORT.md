@@ -25,7 +25,8 @@
 | 禁止跟踪文件检查 | 通过（verify 内含；Git 跟踪文件无密钥、data、SQLite、日志或构建产物） |
 | 发布包测试 | `release-package.test.js` 通过（隔离目录、白名单、manifest） |
 | 备份恢复测试 | `backup-restore.test.js` 通过（停服备份、新目录恢复、citation/file 复验） |
-| 黄金集 / 性能基线 | 待 T7.2 复跑并记录本轮基线 |
+| 黄金集 | `npm run eval` 通过：Recall@5 100%、citation 正确率 100%、有依据回答率 100%、无依据拒答率 100%、攻击阻断率 100%、非法 citation 0 |
+| 性能基线 | `npm run performance` 通过：上传 P95 14.92ms、search P95 5.03ms、chat P95 5.82ms、发布/停用 22.75ms |
 | CI 链接 | 待 T6：分支尚未推送，暂无 CI 运行记录 |
 
 ## 任务进度
