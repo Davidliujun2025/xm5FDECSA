@@ -89,7 +89,7 @@
   - 端口占用和数据目录被锁时返回明确错误。
   - 验收：停止后端口和 runtime.lock 均释放；相同 DATA_DIR 可重新启动。
 
-- [ ] **T1.7 补全后端安全测试**
+- [x] **T1.7 补全后端安全测试**
   - 覆盖无 Cookie、缺 Origin、错误 Origin、非 loopback、跨 Topic、重复 SHA、超限、损坏文件和发布前检索。
   - 覆盖 acceptance 路由不进入公开 OpenAPI。
   - 验收：新增测试全部通过，失败路径不产生可检索 chunk。
