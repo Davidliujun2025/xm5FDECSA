@@ -5,7 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { test } from 'node:test';
 
-import { scanRepository } from '../../scripts/security-scan.js';
+import { scanFrontendBundle, scanRepository } from '../../scripts/security-scan.js';
 
 function git(repositoryRoot, ...args) {
   return execFileSync('git', args, { cwd: repositoryRoot, encoding: 'utf8' });
@@ -42,4 +42,22 @@ test('security gate rejects forced forbidden files and real-looking secrets, the
 
   git(repositoryRoot, 'rm', '--force', '--', 'artifacts/release.zip', 'secret.txt');
   assert.deepEqual(scanRepository({ repositoryRoot }).violations, []);
+});
+
+test('frontend bundle scan rejects long-lived credential identifiers', async (t) => {
+  const repositoryRoot = await mkdtemp(path.join(os.tmpdir(), 'rag-browser-bundle-'));
+  t.after(() => rm(repositoryRoot, { recursive: true, force: true }));
+  const bundleRoot = path.join(repositoryRoot, 'frontend', 'dist', 'assets');
+  await mkdir(bundleRoot, { recursive: true });
+  await writeFile(path.join(bundleRoot, 'index.js'), 'const safeBrowserSession = true;\n', 'utf8');
+  assert.deepEqual(scanFrontendBundle({ repositoryRoot }), {
+    violations: [],
+    scannedBundleFiles: 1
+  });
+
+  const forbiddenName = ['RAG', 'API', 'KEY'].join('_');
+  await writeFile(path.join(bundleRoot, 'leak.js'), `const leakedName = '${forbiddenName}';\n`, 'utf8');
+  const failed = scanFrontendBundle({ repositoryRoot });
+  assert.equal(failed.scannedBundleFiles, 2);
+  assert.ok(failed.violations.some((violation) => violation.includes('frontend/dist/assets/leak.js')));
 });

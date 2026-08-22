@@ -42,7 +42,10 @@ export default function MessageList({ messages, isTyping, listRef }) {
               {message.role === 'bot' ? '智能小助手' : '我'} · {formatTime(message.timestamp)}
               {message.status && <span className="answer-status">{message.status}</span>}
             </div>
-            <div className={`message-bubble ${message.status ? `status-${message.status.toLowerCase()}` : ''}`}>
+            <div
+              className={`message-bubble ${message.status ? `status-${message.status.toLowerCase()}` : ''}`}
+              role={message.status === 'ERROR' ? 'alert' : undefined}
+            >
               {renderMessageContent(message.content)}
             </div>
             {message.citations?.length > 0 && (

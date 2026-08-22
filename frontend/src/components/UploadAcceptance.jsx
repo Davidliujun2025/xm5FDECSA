@@ -226,7 +226,13 @@ export default function UploadAcceptance() {
             )}
 
             <div className="acceptance-actions">
-              <button className="primary-action" type="button" onClick={startUpload} disabled={!file || busy || phase === 'ready' || phase === 'published'}>
+              <button
+                aria-busy={phase === 'uploading' || phase === 'uploaded' || phase === 'processing'}
+                className="primary-action"
+                type="button"
+                onClick={startUpload}
+                disabled={!file || busy || phase === 'ready' || phase === 'published'}
+              >
                 {phase === 'uploading' ? '正在上传…' : phase === 'processing' ? '正在解析…' : '开始上传并解析'}
               </button>
               <button className="secondary-action" type="button" onClick={reset} disabled={busy || phase === 'idle'}>

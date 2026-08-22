@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { readFileSync, statSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -18,6 +18,7 @@ const SECRET_PATTERNS = [
 ];
 const releaseTextPath = /^(?:README\.md|\.env\.example|backend\/src\/|backend\/package\.json|docs\/|examples\/|scripts\/(?:start-|backup-|restore-|check-data|package-release))/;
 const browserSecretPattern = /RAG_API_KEY|MODEL_API_KEY|X-API-Key|Authorization\s*:/i;
+const browserBundleSecretPattern = /RAG_API_KEY|MODEL_API_KEY|X-API-Key/i;
 const assignedSecretPattern = /^[ \t]*(?:export[ \t]+|\$env:)?(?:MODEL_API_KEY|RAG_API_KEY|OPENAI_API_KEY|GITHUB_TOKEN|AWS_SECRET_ACCESS_KEY)[ \t]*=[ \t]*["']?([^\s"'`,;]+)/gmi;
 const syntheticValue = /^(?:portable|test|example|synthetic|placeholder)_/i;
 
@@ -95,16 +96,53 @@ export function scanRepository({ repositoryRoot = DEFAULT_REPOSITORY_ROOT, names
   };
 }
 
+function browserBundleFiles(bundleRoot) {
+  if (!existsSync(bundleRoot)) return [];
+  const files = [];
+  const directories = [bundleRoot];
+  while (directories.length > 0) {
+    const current = directories.pop();
+    for (const entry of readdirSync(current, { withFileTypes: true })) {
+      const absolute = path.join(current, entry.name);
+      if (entry.isDirectory()) {
+        directories.push(absolute);
+      } else if (/\.(?:css|html|js|map)$/i.test(entry.name)) {
+        files.push(absolute);
+      }
+    }
+  }
+  return files.sort();
+}
+
+export function scanFrontendBundle({
+  repositoryRoot = DEFAULT_REPOSITORY_ROOT,
+  bundleRoot = path.join(repositoryRoot, 'frontend', 'dist')
+} = {}) {
+  const files = browserBundleFiles(path.resolve(bundleRoot));
+  const violations = [];
+  for (const absolute of files) {
+    const text = readFileSync(absolute, 'utf8');
+    if (browserBundleSecretPattern.test(text)) {
+      const relative = path.relative(path.resolve(repositoryRoot), absolute).replaceAll('\\', '/');
+      violations.push(`${relative}: long-lived credential reference in browser bundle`);
+    }
+  }
+  return { violations, scannedBundleFiles: files.length };
+}
+
 function main() {
   const result = scanRepository();
-  if (result.violations.length > 0) {
-    process.stderr.write(`${result.violations.join('\n')}\n`);
+  const bundle = scanFrontendBundle();
+  const violations = [...new Set([...result.violations, ...bundle.violations])].sort();
+  if (violations.length > 0) {
+    process.stderr.write(`${violations.join('\n')}\n`);
     process.exitCode = 1;
   } else {
     process.stdout.write(`${JSON.stringify({
       status: 'SECURITY_SCAN_PASSED',
       scannedFiles: result.candidateFiles,
-      scannedTextFiles: result.scannedTextFiles
+      scannedTextFiles: result.scannedTextFiles,
+      scannedBundleFiles: bundle.scannedBundleFiles
     })}\n`);
   }
 }

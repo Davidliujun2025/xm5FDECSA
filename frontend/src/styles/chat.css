@@ -288,6 +288,8 @@ body {
 }
 
 .citation-item a {
+  min-width: 0;
+  overflow-wrap: anywhere;
   color: #176f72;
   font-weight: 700;
 }
@@ -438,6 +440,11 @@ body {
   line-height: 1.5;
 }
 
+.input-row textarea:disabled {
+  color: #8b857d;
+  cursor: not-allowed;
+}
+
 .send-button {
   display: grid;
   flex: 0 0 42px;
@@ -489,6 +496,13 @@ body {
 }
 
 @media (max-width: 520px) {
+  html,
+  body,
+  #root {
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+
   .chat-page {
     padding: 0;
   }
@@ -502,5 +516,14 @@ body {
 
   .message-content {
     max-width: 86%;
+  }
+
+  .chat-header {
+    gap: 8px;
+    padding-inline: 12px;
+  }
+
+  .citation-list {
+    padding-left: 18px;
   }
 }

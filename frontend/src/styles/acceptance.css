@@ -567,6 +567,50 @@
   }
 }
 
+@media (max-width: 520px) {
+  .acceptance-page {
+    padding: 12px 8px;
+  }
+
+  .acceptance-main,
+  .pipeline-panel {
+    padding: 20px 16px;
+  }
+
+  .acceptance-actions,
+  .publish-success {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .acceptance-actions button {
+    width: 100%;
+  }
+
+  .file-drop {
+    min-height: 180px;
+    padding: 26px 14px;
+  }
+
+  .drop-title {
+    overflow-wrap: anywhere;
+    white-space: normal;
+  }
+
+  .topic-strip {
+    gap: 8px;
+    padding-inline: 12px;
+  }
+
+  .audit-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .publish-success-actions {
+    justify-content: flex-start;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .file-drop,
   .stage-light {

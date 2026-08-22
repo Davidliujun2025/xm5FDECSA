@@ -125,7 +125,7 @@
   - 问答页绑定验收 Topic，展示 answer、status、citation、位置、excerpt 和原文链接。
   - 验收：有依据问题回答并引用；无依据拒答；攻击问题阻断。
 
-- [ ] **T2.6 完成安全与可访问性**
+- [x] **T2.6 完成安全与可访问性**
   - 浏览器 bundle 不出现 RAG_API_KEY、MODEL_API_KEY、X-API-Key。
   - 错误区使用 role=alert；按钮具有键盘焦点和禁用状态；窄屏不溢出。
   - 验收：前端安全扫描、单元测试和生产构建通过。
