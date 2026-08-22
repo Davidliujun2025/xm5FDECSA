@@ -9,6 +9,7 @@ import {
   expandedArchiveFixture,
   pdfFixture,
   pptxFixture,
+  prefixedXlsxFixture,
   xlsxFixture
 } from '../helpers/parser-fixtures.js';
 
@@ -49,6 +50,20 @@ test('PDF, DOCX, XLSX, PPTX, Markdown and TXT preserve verifiable locations', as
     assert.equal(result.chunks[0].documentId, DOCUMENT_ID);
     assert.deepEqual(result.chunks[0].location.start, fixture.expectedLocation);
   }
+});
+
+test('XLSX parser accepts a legal prefixed spreadsheet main namespace', async () => {
+  const blocks = await parseDocument({
+    documentId: DOCUMENT_ID,
+    fileName: 'prefixed.xlsx',
+    mime: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    bytes: await prefixedXlsxFixture()
+  });
+
+  assert.ok(blocks.some((block) => block.text === 'Prefixed XLSX visible cell'));
+  assert.ok(blocks.some((block) => block.location.sheet === 'Prefixed' && block.location.cell === 'B2'));
+  assert.ok(blocks.some((block) => block.text === 'Visible table value'));
+  assert.ok(blocks.some((block) => block.location.sheet === 'Prefixed' && block.location.cell === 'E3'));
 });
 
 test('empty blocks and scanned PDFs fail with RAG_NO_TEXT_CONTENT', async () => {

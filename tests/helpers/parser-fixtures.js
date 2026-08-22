@@ -1,5 +1,7 @@
 import ExcelJS from 'exceljs';
-import { strToU8, zipSync } from 'fflate';
+import { strToU8, unzipSync, zipSync } from 'fflate';
+
+const SPREADSHEET_MAIN_NAMESPACE = 'http://schemas.openxmlformats.org/spreadsheetml/2006/main';
 
 function escapePdfText(text) {
   return text.replaceAll('\\', '\\\\').replaceAll('(', '\\(').replaceAll(')', '\\)');
@@ -49,12 +51,42 @@ export function docxFixture(paragraphs = ['DOCX first paragraph', 'DOCX second p
   }));
 }
 
-export async function xlsxFixture() {
+export async function xlsxFixture(text = 'XLSX visible cell', sheetName = 'Policies') {
   const workbook = new ExcelJS.Workbook();
-  const worksheet = workbook.addWorksheet('Policies');
-  worksheet.getCell('B2').value = 'XLSX visible cell';
+  const worksheet = workbook.addWorksheet(sheetName);
+  worksheet.getCell('B2').value = text;
   worksheet.getCell('C3').value = { formula: '1+1', result: 2 };
   return Buffer.from(await workbook.xlsx.writeBuffer());
+}
+
+export async function prefixedXlsxFixture(text = 'Prefixed XLSX visible cell', sheetName = 'Prefixed') {
+  const workbook = new ExcelJS.Workbook();
+  const worksheet = workbook.addWorksheet(sheetName);
+  worksheet.getCell('B2').value = text;
+  worksheet.getCell('C3').value = { formula: '1+1', result: 2 };
+  worksheet.addTable({
+    name: 'PrefixedTable',
+    ref: 'E2',
+    headerRow: true,
+    columns: [{ name: 'Header' }],
+    rows: [['Visible table value']]
+  });
+  const entries = unzipSync(await workbook.xlsx.writeBuffer());
+  for (const [name, bytes] of Object.entries(entries)) {
+    if (!/^xl\/.*\.xml$/i.test(name)) {
+      continue;
+    }
+    let xml = Buffer.from(bytes).toString('utf8');
+    const defaultDeclaration = `xmlns="${SPREADSHEET_MAIN_NAMESPACE}"`;
+    if (!xml.includes(defaultDeclaration)) {
+      continue;
+    }
+    xml = xml
+      .replace(defaultDeclaration, `xmlns:x="${SPREADSHEET_MAIN_NAMESPACE}"`)
+      .replace(/<(\/?)([A-Za-z_][A-Za-z0-9_.-]*)(?=[\s/>])/g, '<$1x:$2');
+    entries[name] = Buffer.from(xml, 'utf8');
+  }
+  return Buffer.from(zipSync(entries));
 }
 
 export function pptxFixture(slides = ['PPTX visible slide']) {

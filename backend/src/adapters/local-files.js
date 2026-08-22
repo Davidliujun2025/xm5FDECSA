@@ -21,6 +21,21 @@ function ensureWithin(root, candidate, errorCode = 'RAG_FILE_STORAGE_ERROR') {
   return resolvedCandidate;
 }
 
+function normalizeMultipartFileName(originalName) {
+  if (typeof originalName !== 'string'
+    || !/[^\x00-\x7F]/.test(originalName)
+    || [...originalName].some((character) => character.codePointAt(0) > 0xFF)) {
+    return originalName;
+  }
+
+  const headerBytes = Buffer.from(originalName, 'latin1');
+  const decoded = headerBytes.toString('utf8');
+  if (decoded.includes('\uFFFD') || !Buffer.from(decoded, 'utf8').equals(headerBytes)) {
+    return originalName;
+  }
+  return decoded;
+}
+
 export class LocalFileStore {
   constructor(config) {
     this.dataDir = config.dataDir;
@@ -63,7 +78,10 @@ export class LocalFileStore {
     const fileStat = await stat(temporaryPath);
     const bytes = await readFile(temporaryPath);
     const inspected = inspectUploadedFile({
-      originalName: file.originalname,
+      // Multer/Busboy decodes an unqualified multipart filename as latin1.
+      // Browsers send UTF-8 bytes here, so recover them only when that
+      // conversion is lossless; already-decoded Unicode and true latin1 stay intact.
+      originalName: normalizeMultipartFileName(file.originalname),
       mime: file.mimetype,
       size: fileStat.size,
       bytes,

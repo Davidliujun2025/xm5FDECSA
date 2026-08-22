@@ -112,6 +112,15 @@ test('upload enforces API Key, ACTIVE Topic, SHA-256 deduplication and idempoten
   const active = await createTopic(api, '启用 Topic', { suffix: 'active' });
   const first = await upload(api, { topicId: active.topicId, fixture: txt, key: 'upload-idem-001', fileName: '原始资料.txt' });
   assert.equal(first.status, 202);
+  const chineseNameDetail = await api.get(`/api/rag/v1/documents/${first.body.documentId}`)
+    .set('X-API-Key', API_KEY).expect(200);
+  assert.equal(chineseNameDetail.body.fileName, '原始资料.txt');
+  const chineseNameFile = await api.get(`/api/rag/v1/documents/${first.body.documentId}/file`)
+    .set('X-API-Key', API_KEY).expect(200);
+  assert.equal(
+    chineseNameFile.headers['content-disposition'],
+    "attachment; filename*=UTF-8''%E5%8E%9F%E5%A7%8B%E8%B5%84%E6%96%99.txt"
+  );
   const replay = await upload(api, { topicId: active.topicId, fixture: txt, key: 'upload-idem-001', fileName: '原始资料.txt' });
   assert.equal(replay.status, 202);
   assert.equal(replay.headers['idempotency-replayed'], 'true');

@@ -139,7 +139,7 @@
   - README/HANDOFF 提供 Swagger 与 PowerShell 两种调用方式。
   - 验收：全部 16 个公开操作通过契约测试和真实 production DI E2E。
 
-- [ ] **T3.2 完成六格式和中文兼容性**
+- [x] **T3.2 完成六格式和中文兼容性**
   - 保留 PDF、DOCX、XLSX、PPTX、MD、TXT 成功与失败矩阵。
   - 保留 XLSX 命名空间前缀、tableParts 和中文文件名回归测试。
   - 验收：每种格式至少 3 个成功样例，损坏/空内容/边界样例稳定失败。
