@@ -3,6 +3,7 @@ import BotAvatar from './BotAvatar';
 import MessageList from './MessageList';
 import InputBar from './InputBar';
 import { initializeBrowserSession, sendChat } from '../api/rag-client';
+import { loadAcceptanceContext } from '../api/acceptance-client.js';
 
 const BOT_NAME = '华夏智诚管理学院';
 const WELCOME_MESSAGE = '您好，我是知识库助手。请就已发布的知识库资料提问；回答会显示可核验的原文引用。';
@@ -22,21 +23,29 @@ function createMessage(role, content, { status = null, citations = [] } = {}) {
 }
 
 export default function ChatBot() {
+  const acceptanceChat = new URLSearchParams(window.location.search).get('acceptance') === '1';
   const [messages, setMessages] = useState(() => [createMessage('bot', WELCOME_MESSAGE)]);
   const [isTyping, setIsTyping] = useState(false);
   const [isClosed, setIsClosed] = useState(false);
   const [sessionState, setSessionState] = useState('loading');
+  const [acceptanceContext, setAcceptanceContext] = useState(null);
   const messageListRef = useRef(null);
 
   useEffect(() => {
     let active = true;
-    initializeBrowserSession()
-      .then(() => active && setSessionState('ready'))
+    Promise.resolve()
+      .then(() => initializeBrowserSession())
+      .then(() => acceptanceChat ? loadAcceptanceContext() : null)
+      .then((context) => {
+        if (!active) return;
+        setAcceptanceContext(context);
+        setSessionState('ready');
+      })
       .catch(() => active && setSessionState('error'));
     return () => {
       active = false;
     };
-  }, []);
+  }, [acceptanceChat]);
 
   const appendBotMessage = (content, options) => {
     setMessages((current) => [...current, createMessage('bot', content, options)]);
@@ -56,12 +65,17 @@ export default function ChatBot() {
   }
 
   async function handleSend(message) {
+    if (acceptanceChat && !acceptanceContext?.topicId) {
+      setSessionState('error');
+      appendBotMessage('验收 Topic 尚未就绪，无法发送问题。', { status: 'ERROR' });
+      return;
+    }
     const userMessage = createMessage('user', message);
     setMessages((current) => [...current, userMessage]);
     setIsTyping(true);
 
     try {
-      const data = await sendChat(message);
+      const data = await sendChat(message, { expectedTopicId: acceptanceContext?.topicId ?? null });
       setSessionState('ready');
       appendBotMessage(data.answer, { status: data.status, citations: data.citations });
     } catch (error) {
@@ -117,8 +131,19 @@ export default function ChatBot() {
         </nav>
       </header>
 
+      {acceptanceChat && (
+        <div className={`chat-topic-binding is-${sessionState}`} role={sessionState === 'error' ? 'alert' : 'status'}>
+          <span>验收 Topic</span>
+          <strong>{acceptanceContext?.topicName ?? (sessionState === 'error' ? '读取失败' : '正在读取…')}</strong>
+          <code>{acceptanceContext?.topicId ?? '—'}</code>
+        </div>
+      )}
+
       <MessageList messages={messages} isTyping={isTyping} listRef={messageListRef} />
-        <InputBar onSend={handleSend} disabled={isTyping || sessionState === 'loading'} />
+        <InputBar
+          onSend={handleSend}
+          disabled={isTyping || sessionState === 'loading' || (acceptanceChat && !acceptanceContext?.topicId)}
+        />
       </div>
     </main>
   );

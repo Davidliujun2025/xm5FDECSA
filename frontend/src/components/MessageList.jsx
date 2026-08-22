@@ -1,5 +1,6 @@
 import { Fragment, useEffect } from 'react';
 import BotAvatar from './BotAvatar';
+import { formatCitationLocation, summarizeCitationExcerpt } from './citation-format.js';
 
 function renderMessageContent(content) {
   if (!content.includes('**')) {
@@ -22,15 +23,6 @@ function formatTime(isoString) {
   });
 }
 
-function formatLocation(location) {
-  if (!location || typeof location !== 'object') {
-    return '';
-  }
-  return Object.entries(location)
-    .map(([key, value]) => `${key}: ${typeof value === 'object' ? JSON.stringify(value) : value}`)
-    .join(' · ');
-}
-
 export default function MessageList({ messages, isTyping, listRef }) {
   useEffect(() => {
     if (listRef.current) {
@@ -48,21 +40,29 @@ export default function MessageList({ messages, isTyping, listRef }) {
           <div className="message-content">
             <div className="message-meta">
               {message.role === 'bot' ? '智能小助手' : '我'} · {formatTime(message.timestamp)}
+              {message.status && <span className="answer-status">{message.status}</span>}
             </div>
             <div className={`message-bubble ${message.status ? `status-${message.status.toLowerCase()}` : ''}`}>
               {renderMessageContent(message.content)}
             </div>
             {message.citations?.length > 0 && (
               <ol className="citation-list" aria-label="回答引用">
-                {message.citations.map((citation) => (
-                  <li className="citation-item" key={citation.citationId}>
-                    <a href={`/api/rag/v1/documents/${encodeURIComponent(citation.documentId)}/file`} target="_blank" rel="noreferrer">
-                      {citation.fileName}
-                    </a>
-                    {formatLocation(citation.location) && <span className="citation-location">{formatLocation(citation.location)}</span>}
-                    <p>{citation.excerpt}</p>
-                  </li>
-                ))}
+                {message.citations.map((citation, index) => {
+                  const location = formatCitationLocation(citation.location);
+                  const excerpt = summarizeCitationExcerpt(citation.excerpt);
+                  return (
+                    <li className="citation-item" key={citation.citationId}>
+                      <div className="citation-heading">
+                        <span className="citation-number">[{index + 1}]</span>
+                        <a href={`/api/rag/v1/documents/${encodeURIComponent(citation.documentId)}/file`} target="_blank" rel="noreferrer">
+                          {citation.fileName}
+                        </a>
+                      </div>
+                      {location && <span className="citation-location">{location}</span>}
+                      {excerpt && <p><span>原文摘录</span>{excerpt}</p>}
+                    </li>
+                  );
+                })}
               </ol>
             )}
           </div>

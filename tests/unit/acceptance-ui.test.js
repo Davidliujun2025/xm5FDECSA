@@ -121,6 +121,9 @@ test('acceptance page exposes a real five-stage upload flow with explicit manual
   assert.equal(component.includes('发布后可检索'), true);
   assert.equal(component.includes('phase !== \'ready\' || publicationGate.current.isPublishing()'), true);
   assert.equal(component.includes('<strong>PUBLISHED</strong>'), true);
+  assert.equal(component.includes('href="/?acceptance=1"'), true);
+  assert.equal(component.includes('进入问答'), true);
+  assert.equal(component.includes('核对原文件'), true);
   assert.equal(component.includes("setPhase('ready')"), true);
   assert.equal(component.includes('/api/acceptance/documents/'), true);
   assert.equal(client.includes('X-API-Key'), false);

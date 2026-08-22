@@ -261,7 +261,10 @@ export default function UploadAcceptance() {
             {phase === 'published' && documentId && (
               <div className="publish-success" role="status">
                 <span><strong>PUBLISHED</strong> 发布成功，文档现在可检索</span>
-                <a href={`/api/acceptance/documents/${encodeURIComponent(documentId)}/file`} target="_blank" rel="noreferrer">核对原文件</a>
+                <span className="publish-success-actions">
+                  <a href="/?acceptance=1">进入问答</a>
+                  <a href={`/api/acceptance/documents/${encodeURIComponent(documentId)}/file`} target="_blank" rel="noreferrer">核对原文件</a>
+                </span>
               </div>
             )}
           </section>

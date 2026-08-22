@@ -375,6 +375,13 @@
   color: #176f72;
 }
 
+.publish-success-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px 12px;
+}
+
 .pipeline-panel {
   display: flex;
   flex-direction: column;
