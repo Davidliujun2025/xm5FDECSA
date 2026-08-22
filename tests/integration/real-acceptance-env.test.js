@@ -43,7 +43,7 @@ test('complete real-model environment starts isolated, serves production API onl
   const runtime = await createRuntime({
     appRoot: APP_ROOT,
     env: { ...env, NODE_ENV: 'test' },
-    initializationDelayMs: 50,
+    initializationDelayMs: 500,
     embeddingFetch: networkForbidden,
     chatFetch: networkForbidden
   });

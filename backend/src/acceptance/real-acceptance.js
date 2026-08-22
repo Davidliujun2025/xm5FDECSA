@@ -119,6 +119,7 @@ export const EVIDENCE_ALLOWED_FIELDS = new Set([
   'status',
   'topic',
   'documents',
+  'questionResults',
   'conclusion',
   'finishedAt'
 ]);

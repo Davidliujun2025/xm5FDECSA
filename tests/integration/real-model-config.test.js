@@ -21,7 +21,7 @@ test('complete real-model configuration passes loading and startup without netwo
   const runtime = await createRuntime({
     appRoot: APP_ROOT,
     env: foundationEnv({ DATA_DIR: dataDir, ...COMPLETE_MODEL_CONFIG }),
-    initializationDelayMs: 50,
+    initializationDelayMs: 500,
     embeddingFetch: networkForbidden,
     chatFetch: networkForbidden
   });

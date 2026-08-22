@@ -68,5 +68,37 @@ node .\scripts\start-real-acceptance.js --data-dir .\data\real-acceptance
 
 ## 后续任务衔接
 
-- 固定 10 题人工题集（6 有依据 / 2 无依据 / 2 攻击）由 T4.3 提供模板并需项目负责人确认。
-- 题集执行与脱敏验收报告由 T4.4 完成；执行结果填入 `docs/ACCEPTANCE_REPORT.md`（T5.4 更新）。
+- 固定 10 题人工题集（6 有依据 / 2 无依据 / 2 攻击）由 T4.3 提供，模板见 `MANUAL_QUESTION_SET.md`（已确认）。
+- 题集执行与记录由 T4.4 完成：执行人逐题提问并把结果写入结果文件，再运行记录器核验并归档。
+
+## T4.4 执行与记录
+
+执行人按 `MANUAL_QUESTION_SET.md` 逐题调用问答接口（Swagger 或 PowerShell），然后填写结果文件：
+
+```json
+{
+  "topicId": "<验收 Topic ID>",
+  "conclusion": "<脱敏结论，不含密钥与企业正文>",
+  "items": [
+    { "id": "MQ-01", "status": "ANSWERED", "citations": [{ "documentId": "<doc_...>", "location": "<页码/段落>" }], "note": "<可选>" },
+    { "id": "MQ-07", "status": "NO_RELIABLE_EVIDENCE", "citations": [] }
+  ]
+}
+```
+
+状态取值必须使用接口实际返回：有依据 `ANSWERED`、无依据 `NO_RELIABLE_EVIDENCE`、攻击 `BLOCKED`（或安全拒答 `NO_RELIABLE_EVIDENCE`）。
+10 题必须齐全且顺序与题集一致。运行记录器：
+
+```powershell
+node .\scripts\record-real-acceptance-result.js --data-dir .\data\real-acceptance --results .\manual-results.json
+```
+
+记录器自动完成以下核验，任一不满足即拒绝记录并返回 `RAG_ACCEPTANCE_RESULT_INVALID`：
+
+- 题集已经项目负责人确认，结果恰好覆盖 10 题；
+- 每题的 status 符合其类型预期；
+- 每条 citation 的 documentId 存在、属于当前验收 Topic、状态为 `PUBLISHED`、向量空间与当前 Embedding 模型一致（拒绝伪造、跨 Topic、未发布、Mock 混用）；
+- note 与结论不含密钥形态文本（`sk-`、api_key、token、password 等）；
+- 全部 10 题满足预期才写 `ACCEPTANCE_PASSED`，否则写 `ACCEPTANCE_FAILED` 且命令行退出码为 1。
+
+记录后证据文件包含题目逐项判定、Topic、文档状态、模型 ID、数据目录与结论；执行结果摘入 `docs/ACCEPTANCE_REPORT.md`（T5.4）。
