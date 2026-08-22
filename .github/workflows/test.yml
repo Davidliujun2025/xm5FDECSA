@@ -5,7 +5,20 @@ on:
   pull_request:
 
 jobs:
-  test:
+  windows:
+    name: Windows Node 24 gate
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run verify
+
+  ubuntu:
+    name: Ubuntu base (supplementary)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -15,4 +28,3 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm test
-      - run: npm run build --workspace frontend

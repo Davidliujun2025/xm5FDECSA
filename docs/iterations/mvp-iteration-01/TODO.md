@@ -216,7 +216,7 @@
   - actions/setup-node 使用 Node.js 24，与 package.json engines 一致。
   - 验收：CI 不再使用 Node 22。
 
-- [ ] **T6.2 增加 Windows 主门禁**
+- [x] **T6.2 增加 Windows 主门禁**
   - 使用 windows-latest 执行 npm ci 和 npm run verify。
   - 可保留 ubuntu-latest 基础测试，但不能替代 Windows。
   - 验收：Windows Job 成功才允许合并。
