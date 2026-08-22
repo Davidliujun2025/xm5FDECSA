@@ -252,7 +252,7 @@
   - 执行 npm run eval 和 npm run performance。
   - 验收：黄金集达到 KPI-04；性能不低于现有 MVP 门槛。
 
-- [ ] **T7.3 验证干净安装**
+- [x] **T7.3 验证干净安装**
   - 在新临时目录或发布 ZIP 中执行 npm ci。
   - 从 README 运行 Mock acceptance，记录开始与完成时间。
   - 验收：15 分钟内页面就绪并完成浏览器全链路。
