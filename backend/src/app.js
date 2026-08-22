@@ -274,29 +274,78 @@ export async function createRuntime({ env = process.env, appRoot = APP_ROOT, log
       }
       readiness.markNotReady();
       closed = true;
-      const finish = () => {
+      const closeDatabaseAndLock = () => {
+        let firstError;
         try {
           database?.close();
-        } finally {
+        } catch (error) {
+          firstError = error;
+        }
+        try {
           runtimeLock.release();
+        } catch (error) {
+          firstError ??= error;
+        }
+        if (firstError) {
+          throw firstError;
         }
       };
-      if (!jobLoop) {
-        finish();
+      if (!jobLoop && !parserWorker) {
+        closeDatabaseAndLock();
         closePromise = Promise.resolve();
         return closePromise;
       }
       closePromise = (async () => {
-        try {
-          await jobLoop.stop();
-          await parserWorker?.close();
-        } finally {
-          finish();
+        let firstError;
+        const closeResource = async (action) => {
+          try {
+            await action();
+          } catch (error) {
+            firstError ??= error;
+          }
+        };
+        await closeResource(() => jobLoop?.stop());
+        await closeResource(() => parserWorker?.close());
+        await closeResource(closeDatabaseAndLock);
+        if (firstError) {
+          throw firstError;
         }
       })();
       return closePromise;
     }
   };
+}
+
+function closeHttpServer(server) {
+  if (!server.listening) {
+    return Promise.resolve();
+  }
+  return new Promise((resolve, reject) => {
+    server.close((error) => {
+      if (error) {
+        reject(error);
+        return;
+      }
+      resolve();
+    });
+  });
+}
+
+async function closeServerResources(server, runtime) {
+  let firstError;
+  try {
+    await closeHttpServer(server);
+  } catch (error) {
+    firstError = error;
+  }
+  try {
+    await runtime.close();
+  } catch (error) {
+    firstError ??= error;
+  }
+  if (firstError) {
+    throw firstError;
+  }
 }
 
 export async function startServer(options = {}) {
@@ -310,22 +359,37 @@ export async function startServer(options = {}) {
     });
     await runtime.initialize();
   } catch (error) {
-    await new Promise((resolve) => server.close(resolve));
-    await runtime.close();
+    await closeServerResources(server, runtime).catch(() => undefined);
     throw error;
   }
 
-  const shutdown = () => {
+  let serverClosePromise;
+  let shutdown;
+  const close = () => {
+    if (serverClosePromise) {
+      return serverClosePromise;
+    }
     runtime.readiness.markNotReady();
-    server.close(async () => {
-      await runtime.close();
-      process.exitCode = 0;
-    });
+    process.removeListener('SIGINT', shutdown);
+    process.removeListener('SIGTERM', shutdown);
+    serverClosePromise = closeServerResources(server, runtime);
+    return serverClosePromise;
+  };
+  shutdown = () => {
+    close().then(
+      () => {
+        process.exitCode = 0;
+      },
+      () => {
+        process.stderr.write('RAG_SHUTDOWN_FAILED: 服务资源关闭失败\n');
+        process.exitCode = 1;
+      }
+    );
   };
   process.once('SIGINT', shutdown);
   process.once('SIGTERM', shutdown);
 
-  return { runtime, server };
+  return { runtime, server, close };
 }
 
 async function runFromCommandLine() {

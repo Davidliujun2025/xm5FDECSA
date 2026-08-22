@@ -84,7 +84,7 @@
   - 不允许 acceptance 路由发布其他 Topic 文档。
   - 验收：READY 文档检索不到；发布后可检索；其他 Topic 的 documentId/jobId 返回 404。
 
-- [ ] **T1.6 正确关闭运行时**
+- [x] **T1.6 正确关闭运行时**
   - Ctrl+C 或正常停止时关闭 HTTP server、Job loop、parser worker、SQLite 并释放 runtime.lock。
   - 端口占用和数据目录被锁时返回明确错误。
   - 验收：停止后端口和 runtime.lock 均释放；相同 DATA_DIR 可重新启动。
