@@ -21,6 +21,7 @@ export default function InputBar({ onSend, disabled }) {
     }}>
       <div className="input-row">
         <textarea
+          disabled={disabled}
           value={value}
           onChange={(event) => setValue(event.target.value)}
           onCompositionStart={() => setIsComposing(true)}

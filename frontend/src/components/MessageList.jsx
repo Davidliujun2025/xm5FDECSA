@@ -1,6 +1,6 @@
 import { Fragment, useEffect } from 'react';
 import BotAvatar from './BotAvatar';
-import WelcomeMessage from './WelcomeMessage';
+import { formatCitationLocation, summarizeCitationExcerpt } from './citation-format.js';
 
 function renderMessageContent(content) {
   if (!content.includes('**')) {
@@ -40,12 +40,34 @@ export default function MessageList({ messages, isTyping, listRef }) {
           <div className="message-content">
             <div className="message-meta">
               {message.role === 'bot' ? '智能小助手' : '我'} · {formatTime(message.timestamp)}
+              {message.status && <span className="answer-status">{message.status}</span>}
             </div>
-            <div className="message-bubble">
-              {message.kind === 'welcome'
-                ? <WelcomeMessage />
-                : renderMessageContent(message.content)}
+            <div
+              className={`message-bubble ${message.status ? `status-${message.status.toLowerCase()}` : ''}`}
+              role={message.status === 'ERROR' ? 'alert' : undefined}
+            >
+              {renderMessageContent(message.content)}
             </div>
+            {message.citations?.length > 0 && (
+              <ol className="citation-list" aria-label="回答引用">
+                {message.citations.map((citation, index) => {
+                  const location = formatCitationLocation(citation.location);
+                  const excerpt = summarizeCitationExcerpt(citation.excerpt);
+                  return (
+                    <li className="citation-item" key={citation.citationId}>
+                      <div className="citation-heading">
+                        <span className="citation-number">[{index + 1}]</span>
+                        <a href={`/api/rag/v1/documents/${encodeURIComponent(citation.documentId)}/file`} target="_blank" rel="noreferrer">
+                          {citation.fileName}
+                        </a>
+                      </div>
+                      {location && <span className="citation-location">{location}</span>}
+                      {excerpt && <p><span>原文摘录</span>{excerpt}</p>}
+                    </li>
+                  );
+                })}
+              </ol>
+            )}
           </div>
         </div>
       ))}

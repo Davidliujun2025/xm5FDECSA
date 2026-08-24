@@ -1,0 +1,2 @@
+-- Superseded for the portable MVP.
+-- PostgreSQL/pgvector is intentionally not part of the runtime or verification path.
