@@ -3,10 +3,24 @@
   "private": true,
   "version": "0.1.0",
   "description": "RAG chatbot backend and frontend workspace",
+  "type": "module",
+  "engines": {
+    "node": ">=24 <25",
+    "npm": ">=11 <12"
+  },
   "workspaces": ["backend", "frontend"],
   "scripts": {
     "dev": "npm run dev --workspace backend",
-    "test": "npm run test --workspaces",
-    "build": "npm run build --workspace frontend"
+    "start": "npm run start --workspace backend",
+    "test": "npm run test:backend && npm run test:frontend",
+    "test:backend": "node --test \"tests/**/*.test.js\"",
+    "test:frontend": "npm run test --workspace frontend",
+    "build": "npm run build --workspace frontend",
+    "smoke": "node scripts/smoke-start.js",
+    "security-scan": "node scripts/security-scan.js",
+    "verify": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/verify.ps1"
+  },
+  "devDependencies": {
+    "supertest": "7.1.4"
   }
 }
