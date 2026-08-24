@@ -57,7 +57,9 @@ async function waitSucceeded(api, jobId) {
   assert.fail(`job timeout: ${jobId}`);
 }
 
-test('stopped backup restores into a new DATA_DIR with topic, search, chat citation and file intact', async (t) => {
+test('stopped backup restores into a new DATA_DIR with topic, search, chat citation and file intact', {
+  skip: process.platform === 'win32' ? false : 'requires Windows PowerShell scripts'
+}, async (t) => {
   const root = mkdtempSync(path.join(os.tmpdir(), 'rag-backup-acceptance-'));
   const sourceData = path.join(root, 'source-data');
   const restoredData = path.join(root, 'restored-data');

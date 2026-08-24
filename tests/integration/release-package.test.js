@@ -5,7 +5,9 @@ import { test } from 'node:test';
 
 import { APP_ROOT } from '../../backend/src/app.js';
 
-test('release ZIP is reproducibly staged into two clean roots without runtime or secret material', () => {
+test('release ZIP is reproducibly staged into two clean roots without runtime or secret material', {
+  skip: process.platform === 'win32' ? false : 'requires Windows PowerShell scripts'
+}, () => {
   const output = execFileSync('powershell.exe', [
     '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', path.join(APP_ROOT, 'scripts/test-portable-release.ps1')
   ], { cwd: APP_ROOT, encoding: 'utf8', timeout: 30_000 });
