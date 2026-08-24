@@ -1,11 +1,16 @@
-import { getDocument } from 'pdfjs-dist/legacy/build/pdf.mjs';
-
 import {
   createParsedBlock,
   invalidParseFileError,
   normalizeParserError
 } from '../../domain/ingestion.js';
 import { asBuffer } from './common.js';
+
+let pdfJsPromise;
+
+function loadPdfJs() {
+  pdfJsPromise ??= import('pdfjs-dist/legacy/build/pdf.mjs');
+  return pdfJsPromise;
+}
 
 function pageText(items) {
   return items.map((item) => {
@@ -29,6 +34,7 @@ export async function parsePdf(bytes) {
   let loadingTask;
   let pdf;
   try {
+    const { getDocument } = await loadPdfJs();
     loadingTask = getDocument({
       data: new Uint8Array(buffer),
       disableFontFace: true,
