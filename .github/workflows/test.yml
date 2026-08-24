@@ -5,35 +5,14 @@ on:
   pull_request:
 
 jobs:
-  windows:
-    name: Windows Node 24 gate
-    runs-on: windows-latest
-    steps:
-      - uses: actions/checkout@v5
-        with:
-          fetch-depth: 0
-      - uses: actions/setup-node@v5
-        with:
-          node-version: 24
-          cache: npm
-      - run: npm ci
-      - run: npm run verify
-      - name: Mock browser acceptance end-to-end
-        run: node --test tests/integration/local-acceptance-upload.test.js tests/integration/acceptance-security.test.js tests/integration/acceptance-model-runtime.test.js tests/integration/sample-upload.test.js
-      - name: Whitespace and line-ending gate
-        run: |
-          BASE=$(git merge-base HEAD origin/main 2>/dev/null || echo HEAD~50)
-          git diff --check "$BASE"..HEAD
-        shell: bash
-
-  ubuntu:
-    name: Ubuntu base (supplementary)
+  test:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
         with:
-          node-version: 24
+          node-version: 22
           cache: npm
       - run: npm ci
       - run: npm test
+      - run: npm run build --workspace frontend

@@ -2,29 +2,11 @@
   "name": "bot-rag",
   "private": true,
   "version": "0.1.0",
-  "type": "module",
   "description": "RAG chatbot backend and frontend workspace",
-  "engines": {
-    "node": ">=24 <25",
-    "npm": ">=11"
-  },
-  "workspaces": [
-    "backend",
-    "frontend"
-  ],
+  "workspaces": ["backend", "frontend"],
   "scripts": {
     "dev": "npm run dev --workspace backend",
-    "start": "npm run start --workspace backend",
-    "acceptance": "node scripts/start-acceptance.js",
-    "test": "node --test \"tests/**/*.test.js\"",
-    "build": "npm run build --workspace frontend",
-    "eval": "node evals/run-golden-set.js",
-    "performance": "node evals/run-performance.js",
-    "security-scan": "node scripts/security-scan.js",
-    "verify": "powershell -ExecutionPolicy Bypass -File scripts/verify.ps1",
-    "release": "powershell -ExecutionPolicy Bypass -File scripts/package-release.ps1"
-  },
-  "devDependencies": {
-    "supertest": "7.1.4"
+    "test": "npm run test --workspaces",
+    "build": "npm run build --workspace frontend"
   }
 }

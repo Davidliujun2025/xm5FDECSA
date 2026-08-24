@@ -1,7 +1,0 @@
-# T1.7 Backend Acceptance Security
-
-The formal acceptance adapter remains protected by three independent boundaries: the startup entry binds only to loopback, the route rejects a non-loopback socket or an invalid/missing write Origin, and every operation requires a valid origin-bound HttpOnly browser session. A test-only registrar substitutes a documentation-only remote peer address (`192.0.2.10`) so the route-level loopback rejection is deterministic without opening a LAN listener.
-
-`tests/integration/acceptance-security.test.js` consolidates the required negative matrix. Missing Cookie, missing Origin, wrong Origin, non-loopback access, oversized input, damaged input, duplicate SHA-256 content and cross-Topic identifiers all fail with stable status/error codes. Rejected access and invalid files leave zero documents, jobs and chunks; duplicate content leaves exactly the original document/job/chunk; cross-Topic READY content remains unpublished and absent from retrieval.
-
-The same matrix proves the positive publication boundary: a valid acceptance TXT reaches READY, search is empty before the explicit publish request, and afterward search returns only the original document. It also asserts that no `/api/acceptance` path appears in the public OpenAPI document. Existing route-mount coverage supplies the initialization/loading 503 state and confirms ordinary local, team and production runtimes never register the adapter.
