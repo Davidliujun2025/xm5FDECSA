@@ -48,7 +48,7 @@ test('Topic vector cache reuses matching versions and invalidates on published-s
     embeddingClient: { embedQuery: async () => ({ vector: [1, 0], model: 'embed-v1', dimension: 2, space: 'cosine' }) },
     config: {
       model: { embeddingModel: 'embed-v1' }, maxConcurrentRequests: 3,
-      retrievalCandidates: 10, evidenceThreshold: 0.45
+      retrievalCandidates: 10, evidenceThreshold: 0.45, relatedEvidenceThreshold: 0.25
     }
   });
   assert.equal((await service.search({ topicId: 'topic_a', question: 'alpha', limit: 5 })).results.length, 1);
@@ -57,4 +57,34 @@ test('Topic vector cache reuses matching versions and invalidates on published-s
   version = 'v2';
   await service.search({ topicId: 'topic_a', question: 'alpha', limit: 5 });
   assert.equal(loads, 2);
+});
+
+test('internal diagnostics distinguish related candidates below the evidence threshold', async () => {
+  const row = {
+    id: 'chunk_related', documentId: 'doc_related', fileName: 'related.txt', text: 'related evidence',
+    location: { lineStart: 1, lineEnd: 1 }, embedding: blob([0.4, Math.sqrt(0.84)]), embeddingDim: 2
+  };
+  const service = new RetrievalService({
+    repository: {
+      publishedSet: () => ({ version: 'v1', chunkCount: 1 }),
+      loadPublished: () => [row],
+      revalidate: () => []
+    },
+    embeddingClient: {
+      embedQuery: async () => ({ vector: [1, 0], model: 'embed-v1', dimension: 2, space: 'cosine' })
+    },
+    config: {
+      model: { embeddingModel: 'embed-v1' }, maxConcurrentRequests: 3,
+      retrievalCandidates: 10, evidenceThreshold: 0.45, relatedEvidenceThreshold: 0.25
+    }
+  });
+  const result = await service.search({
+    topicId: 'topic_a',
+    question: 'related query',
+    limit: 5,
+    includeDiagnostics: true
+  });
+  assert.deepEqual(result.results, []);
+  assert.equal(result.diagnostics.related, true);
+  assert.ok(result.diagnostics.topScore >= 0.39 && result.diagnostics.topScore <= 0.41);
 });

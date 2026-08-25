@@ -41,7 +41,7 @@
 }
 ```
 
-冻结前端请求；`conversationId` 可选并由兼容层忽略：
+冻结前端请求；`conversationId` 可选。服务端只会复用“实际 socket IP + 默认 Topic”一致且 15 分钟内活跃的会话，不能用它读取其他 IP 的历史：
 
 ```json
 {
@@ -50,4 +50,6 @@
 }
 ```
 
-成功响应具有 `ANSWERED`、`NO_RELIABLE_EVIDENCE` 或 `BLOCKED` 三种状态，并始终带 `topicId`、`answer`、`citations` 和 `traceId`。所有错误响应统一包含 `errorCode`、`message`、`details` 和 `traceId`。
+`/api/chat` 响应还包含 `conversationId`、`intent`、`branch`、`needTransferHuman` 和 `contextUsed`。业务分支为：`9-1` 无效或无关问题、`9-2` 命中知识库、`9-3` 与知识库相关但没有可靠结果。成功响应具有 `ANSWERED`、`NO_RELIABLE_EVIDENCE` 或 `BLOCKED` 三种状态，并始终带 `topicId`、`answer`、`citations` 和 `traceId`。所有错误响应统一包含 `errorCode`、`message`、`details` 和 `traceId`。
+
+会话历史保存在 `DATA_DIR/knowledge.db` 的 `chat_session` 与 `chat_message` 表。每个成功问答轮次都会分别保存一条 `USER` 问题和一条 `ASSISTANT` 回答；15 分钟超时只结束会话，不删除旧消息。`CHAT_HISTORY_TURNS` 只控制送入下一轮检索的上下文窗口，数据库始终保留全部历史。服务不信任 `X-Forwarded-For`；若部署在反向代理后，需要确保后端能看到真实客户端 socket IP，否则同一代理出口会被视为同一访客。

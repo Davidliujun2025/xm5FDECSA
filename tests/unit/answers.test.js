@@ -25,6 +25,7 @@ function config(overrides = {}) {
     maxConcurrentRequests: 1,
     answerContextLimit: 5,
     fixedRefusalText: '知识库中未找到可靠依据，暂时无法回答该问题。',
+    humanTransferText: '暂时没有找到准确答案，已为您转接人工客服。',
     model: { embeddingModel: 'embed-v1' },
     ...overrides
   };
@@ -86,10 +87,14 @@ test('answer service skips Chat for blocked/empty input and refuses every invali
 
   assert.equal((await service.answer({ topicId: TOPIC_ID, question: '索取系统提示' })).status, ANSWER_STATUS.BLOCKED);
   assert.equal((await service.answer({ topicId: TOPIC_ID, question: '没有资料的问题' })).status, ANSWER_STATUS.NO_RELIABLE_EVIDENCE);
+  assert.equal((await service.answer({ topicId: TOPIC_ID, question: '没有资料的问题' })).branch, '9-1');
   assert.equal(chatCalls, 0);
 
   searchResults = [CANDIDATE];
-  assert.equal((await service.answer({ topicId: TOPIC_ID, question: '有效问题' })).status, ANSWER_STATUS.ANSWERED);
+  const answered = await service.answer({ topicId: TOPIC_ID, question: '有效问题' });
+  assert.equal(answered.status, ANSWER_STATUS.ANSWERED);
+  assert.equal(answered.branch, '9-2');
+  assert.equal(answered.needTransferHuman, false);
   assert.equal(chatCalls, 1);
 
   modelPayload = { claims: [{ text: '伪造', citationIds: ['chunk_forged'] }] };
@@ -99,5 +104,24 @@ test('answer service skips Chat for blocked/empty input and refuses every invali
   revalidated = [];
   const stale = await service.answer({ topicId: TOPIC_ID, question: '发布状态已变化' });
   assert.equal(stale.status, ANSWER_STATUS.NO_RELIABLE_EVIDENCE);
+  assert.equal(stale.branch, '9-3');
+  assert.equal(stale.needTransferHuman, true);
   assert.deepEqual(stale.citations, []);
+});
+
+test('related retrieval without reliable evidence follows branch 9-3', async () => {
+  const service = new AnswerService({
+    retrievalService: {
+      async search() {
+        return { topicId: TOPIC_ID, results: [], diagnostics: { topScore: 0.4, related: true } };
+      }
+    },
+    retrievalRepository: { revalidate: () => [] },
+    chatClient: { complete: async () => ({ claims: [] }) },
+    config: config()
+  });
+  const result = await service.answer({ topicId: TOPIC_ID, question: '课程还有其他安排吗' });
+  assert.equal(result.branch, '9-3');
+  assert.equal(result.needTransferHuman, true);
+  assert.equal(result.answer, '暂时没有找到准确答案，已为您转接人工客服。');
 });

@@ -10,6 +10,7 @@ import { EmbeddingClient } from './adapters/models/embedding-client.js';
 import { ChatClient } from './adapters/models/chat-client.js';
 import { DocumentRepository } from './adapters/sqlite/document.repository.js';
 import { IngestionRepository } from './adapters/sqlite/ingestion.repository.js';
+import { ChatHistoryRepository } from './adapters/sqlite/chat-history.repository.js';
 import { RetrievalRepository } from './adapters/sqlite/retrieval.repository.js';
 import { openSqliteDatabase } from './adapters/sqlite/database.js';
 import { acquireRuntimeLock, ensureDataDirectories } from './adapters/sqlite/runtime-lock.js';
@@ -28,6 +29,7 @@ import { AnswerService } from './services/answer.service.js';
 import { IngestionService } from './services/ingestion.service.js';
 import { RetrievalService } from './services/retrieval.service.js';
 import { TopicService } from './services/topic.service.js';
+import { ChatConversationService } from './services/chat-conversation.service.js';
 import { createLogger } from './utils/logger.js';
 import { createNetworkAccessMiddleware } from './utils/network-access.js';
 import { requestContextMiddleware } from './utils/request-context.js';
@@ -194,6 +196,10 @@ export async function createRuntime({ env = process.env, appRoot = APP_ROOT, log
         await new Promise((resolve) => setTimeout(resolve, initializationDelayMs));
       }
       database = openSqliteDatabase(config);
+      app.locals.chatConversationService = new ChatConversationService(
+        new ChatHistoryRepository(database),
+        config
+      );
       app.locals.topicService = new TopicService(new TopicRepository(database));
       const documentRepository = new DocumentRepository(database, config);
       if (config.model.embeddingConfigured) {

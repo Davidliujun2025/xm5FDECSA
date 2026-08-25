@@ -35,17 +35,29 @@ test('the frozen 8642444 frontend request shape works without a frontend change'
     .send({ message: '前端问题', conversationId: 'legacy-conversation' })
     .expect(200);
   assert.equal(first.body.answer, '知识库核心回答');
+  assert.match(first.body.conversationId, /^session_[0-9a-f]{32}$/);
+  assert.equal(first.body.contextUsed, false);
   assert.match(first.body.traceId, /^trace_/);
-  assert.deepEqual(received[0], { topicId, question: '前端问题' });
+  assert.deepEqual(received[0], {
+    topicId,
+    question: '前端问题',
+    contextualQuestion: '前端问题',
+    intent: 'KNOWLEDGE_QUERY'
+  });
   assert.match(first.headers['set-cookie'][0], /rag_query_session=/);
   assert.match(first.headers['set-cookie'][0], /HttpOnly/);
 
   const cookie = first.headers['set-cookie'][0].split(';')[0];
-  await api.post('/api/chat')
+  const second = await api.post('/api/chat')
     .set('Origin', 'http://localhost:5173')
     .set('Cookie', cookie)
-    .send({ message: '第二个问题' })
+    .send({ message: '第二个问题', conversationId: first.body.conversationId })
     .expect(200);
+  assert.equal(second.body.conversationId, first.body.conversationId);
+  assert.equal(second.body.contextUsed, true);
+  assert.match(received[1].contextualQuestion, /用户: 前端问题/);
+  assert.match(received[1].contextualQuestion, /助手: 知识库核心回答/);
+  assert.match(received[1].contextualQuestion, /当前问题: 第二个问题/);
   await api.post('/api/chat').send({ message: '无浏览器来源' }).expect(403);
   await api.post('/api/chat')
     .set('X-API-Key', API_KEY)

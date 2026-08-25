@@ -37,6 +37,10 @@ const baseSchema = {
     RETRIEVAL_CANDIDATES: { type: 'integer', minimum: 1, maximum: 10 },
     ANSWER_CONTEXT_LIMIT: { type: 'integer', minimum: 1, maximum: 5 },
     EVIDENCE_THRESHOLD: { type: 'number', minimum: 0, maximum: 1 },
+    RELATED_EVIDENCE_THRESHOLD: { type: 'number', minimum: 0, maximum: 1 },
+    CHAT_SESSION_TIMEOUT_MINUTES: { type: 'integer', minimum: 1, maximum: 1440 },
+    CHAT_HISTORY_TURNS: { type: 'integer', minimum: 1, maximum: 20 },
+    HUMAN_TRANSFER_TEXT: { type: 'string', minLength: 1, maxLength: 500 },
     MAX_CONCURRENT_REQUESTS: { type: 'integer', minimum: 1, maximum: 3 }
   }
 };
@@ -197,6 +201,10 @@ export function loadConfig(env = process.env, { appRoot = process.cwd() } = {}) 
     RETRIEVAL_CANDIDATES: env.RETRIEVAL_CANDIDATES || '10',
     ANSWER_CONTEXT_LIMIT: env.ANSWER_CONTEXT_LIMIT || '5',
     EVIDENCE_THRESHOLD: env.EVIDENCE_THRESHOLD || '0.45',
+    RELATED_EVIDENCE_THRESHOLD: env.RELATED_EVIDENCE_THRESHOLD || '0.25',
+    CHAT_SESSION_TIMEOUT_MINUTES: env.CHAT_SESSION_TIMEOUT_MINUTES || '15',
+    CHAT_HISTORY_TURNS: env.CHAT_HISTORY_TURNS || '6',
+    HUMAN_TRANSFER_TEXT: env.HUMAN_TRANSFER_TEXT || '暂时没有找到准确答案，已为您转接人工客服。',
     MAX_CONCURRENT_REQUESTS: env.MAX_CONCURRENT_REQUESTS || '3'
   };
 
@@ -212,6 +220,14 @@ export function loadConfig(env = process.env, { appRoot = process.cwd() } = {}) 
   const model = parseModelConfig(values);
   if (!values.FIXED_REFUSAL_TEXT.trim()) {
     failConfig('FIXED_REFUSAL_TEXT 不得为空', { field: 'FIXED_REFUSAL_TEXT' });
+  }
+  if (!values.HUMAN_TRANSFER_TEXT.trim()) {
+    failConfig('HUMAN_TRANSFER_TEXT 不得为空', { field: 'HUMAN_TRANSFER_TEXT' });
+  }
+  if (Number(values.RELATED_EVIDENCE_THRESHOLD) > Number(values.EVIDENCE_THRESHOLD)) {
+    failConfig('RELATED_EVIDENCE_THRESHOLD 不得大于 EVIDENCE_THRESHOLD', {
+      field: 'RELATED_EVIDENCE_THRESHOLD'
+    });
   }
   let teamAllowedCidrs = [];
 
@@ -247,6 +263,7 @@ export function loadConfig(env = process.env, { appRoot = process.cwd() } = {}) 
     frontendDefaultTopicId: values.FRONTEND_DEFAULT_TOPIC_ID?.trim() || null,
     frontendDistDir: path.resolve(appRoot, values.FRONTEND_DIST_DIR || './frontend/dist'),
     fixedRefusalText: values.FIXED_REFUSAL_TEXT.trim(),
+    humanTransferText: values.HUMAN_TRANSFER_TEXT.trim(),
     corsOrigins,
     teamAllowedCidrs,
     dataDir: path.resolve(appRoot, values.DATA_DIR),
@@ -259,6 +276,9 @@ export function loadConfig(env = process.env, { appRoot = process.cwd() } = {}) 
     retrievalCandidates: Number(values.RETRIEVAL_CANDIDATES),
     answerContextLimit: Number(values.ANSWER_CONTEXT_LIMIT),
     evidenceThreshold: Number(values.EVIDENCE_THRESHOLD),
+    relatedEvidenceThreshold: Number(values.RELATED_EVIDENCE_THRESHOLD),
+    chatSessionTimeoutMs: Number(values.CHAT_SESSION_TIMEOUT_MINUTES) * 60 * 1000,
+    chatHistoryMessageLimit: Number(values.CHAT_HISTORY_TURNS) * 2,
     chunk: Object.freeze({
       minChars: 800,
       targetChars: Number(values.CHUNK_TARGET_CHARS),

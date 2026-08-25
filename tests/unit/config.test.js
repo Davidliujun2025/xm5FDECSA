@@ -86,7 +86,25 @@ test('real-model configuration is all-or-none and constrains timeouts and chunk 
   assert.equal(config.retrievalCandidates, 10);
   assert.equal(config.answerContextLimit, 5);
   assert.equal(config.evidenceThreshold, 0.45);
+  assert.equal(config.relatedEvidenceThreshold, 0.25);
+  assert.equal(config.chatSessionTimeoutMs, 15 * 60 * 1000);
+  assert.equal(config.chatHistoryMessageLimit, 12);
   assert.deepEqual(config.chunk, { minChars: 800, targetChars: 1000, maxChars: 1200, overlapChars: 150 });
+});
+
+test('chat history configuration constrains timeout, history and related threshold', () => {
+  assert.throws(
+    () => loadConfig(foundationEnv({ CHAT_SESSION_TIMEOUT_MINUTES: '0' })),
+    (error) => error.errorCode === 'RAG_CONFIG_INVALID'
+  );
+  assert.throws(
+    () => loadConfig(foundationEnv({ CHAT_HISTORY_TURNS: '21' })),
+    (error) => error.errorCode === 'RAG_CONFIG_INVALID'
+  );
+  assert.throws(
+    () => loadConfig(foundationEnv({ RELATED_EVIDENCE_THRESHOLD: '0.5', EVIDENCE_THRESHOLD: '0.45' })),
+    (error) => error.errorCode === 'RAG_CONFIG_INVALID' && error.details.field === 'RELATED_EVIDENCE_THRESHOLD'
+  );
 });
 
 test('Chat configuration validates model prerequisites, default Topic and refusal text', () => {

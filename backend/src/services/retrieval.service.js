@@ -56,7 +56,7 @@ export class RetrievalService {
     this.activeRequests = 0;
   }
 
-  async search({ topicId, question, limit }) {
+  async search({ topicId, question, limit, includeDiagnostics = false }) {
     if (this.activeRequests >= this.config.maxConcurrentRequests) {
       throw new AppError({ statusCode: 429, errorCode: 'RAG_BUSY', message: '检索请求并发已达到上限' });
     }
@@ -64,7 +64,11 @@ export class RetrievalService {
     try {
       const published = this.repository.publishedSet(topicId, this.config.model.embeddingModel);
       if (published.chunkCount === 0) {
-        return { topicId, results: [] };
+        return {
+          topicId,
+          results: [],
+          ...(includeDiagnostics ? { diagnostics: { topScore: null, related: false } } : {})
+        };
       }
       const embedded = await this.embeddingClient.embedQuery(question);
       const cacheKey = `${topicId}:${this.config.model.embeddingModel}`;
@@ -76,7 +80,11 @@ export class RetrievalService {
         })));
       }
       if (entries.length === 0) {
-        return { topicId, results: [] };
+        return {
+          topicId,
+          results: [],
+          ...(includeDiagnostics ? { diagnostics: { topScore: null, related: false } } : {})
+        };
       }
       if (embedded.model !== this.config.model.embeddingModel || embedded.space !== 'cosine') {
         throw new AppError({ statusCode: 422, errorCode: 'RAG_MODEL_OUTPUT_INVALID', message: '查询向量元数据与当前索引不一致' });
@@ -84,14 +92,26 @@ export class RetrievalService {
       const queryVector = Float32Array.from(embedded.vector);
       const ranked = rankCandidates(queryVector, entries, {
         candidates: this.config.retrievalCandidates,
-        threshold: this.config.evidenceThreshold
-      }).slice(0, limit);
-      const finalRows = this.repository.revalidate(topicId, this.config.model.embeddingModel, ranked.map((item) => item.id));
+        threshold: -1
+      });
+      const accepted = ranked
+        .filter((item) => item.score >= this.config.evidenceThreshold)
+        .slice(0, limit);
+      const finalRows = this.repository.revalidate(topicId, this.config.model.embeddingModel, accepted.map((item) => item.id));
       const byId = new Map(finalRows.map((row) => [row.id, row]));
-      const results = ranked
+      const results = accepted
         .filter((item) => byId.has(item.id))
         .map((item) => citationResponse(byId.get(item.id), item.score));
-      return { topicId, results };
+      return {
+        topicId,
+        results,
+        ...(includeDiagnostics ? {
+          diagnostics: {
+            topScore: ranked[0] ? Number(ranked[0].score.toFixed(6)) : null,
+            related: Boolean(ranked[0] && ranked[0].score >= this.config.relatedEvidenceThreshold)
+          }
+        } : {})
+      };
     } finally {
       this.activeRequests -= 1;
     }

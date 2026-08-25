@@ -7,6 +7,7 @@
 - Topic 创建、启用、停用和幂等写入
 - PDF、DOCX、XLSX、PPTX、Markdown、TXT 上传与安全解析
 - SQLite 持久化、原文件保存、后台串行索引和故障恢复
+- 按客户端实际 IP 隔离的 15 分钟聊天会话与完整消息历史
 - Embedding 检索、证据阈值、严格引用校验和失败关闭式问答
 - OpenAPI 3.1 JSON、稳定错误码、健康检查、备份与恢复
 - API Key 管理边界、短期浏览器查询会话和团队 CIDR 限制
@@ -54,7 +55,7 @@ npm start
 
 - OpenAPI JSON：`GET /api/rag/v1/openapi.json`
 - 后端接口：`/api/rag/v1/*`，使用 `X-API-Key`
-- 冻结前端入口：`POST /api/chat`，首次允许的同源请求自动取得 HttpOnly 会话
+- 冻结前端入口：`POST /api/chat`，首次允许的同源请求自动取得 HttpOnly 会话；聊天上下文按实际 socket IP 隔离并持久化
 - 完整命令示例：[examples/curl.md](examples/curl.md)
 
 一键验收：

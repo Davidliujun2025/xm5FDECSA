@@ -69,5 +69,9 @@ export function validateCompatibilityChatRequest(body, defaultTopicId) {
       message: '前端默认 Topic 尚未配置'
     });
   }
-  return { topicId: defaultTopicId, question: normalizeQuestion(body.message) };
+  return {
+    topicId: defaultTopicId,
+    question: normalizeQuestion(body.message),
+    requestedSessionId: body.conversationId
+  };
 }

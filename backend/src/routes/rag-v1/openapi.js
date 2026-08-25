@@ -288,8 +288,8 @@ export function createOpenApiDocument(config) {
       '/api/chat': {
         post: {
           operationId: 'answerDefaultTopicQuestion',
-          summary: '既有前端严格问答兼容入口',
-          description: '服务端绑定 FRONTEND_DEFAULT_TOPIC_ID；可接收但忽略既有前端的 conversationId，不允许 Topic 覆盖。首次同源请求会签发 HttpOnly 查询会话。',
+          summary: '带 IP 会话历史的前端严格问答兼容入口',
+          description: '服务端绑定 FRONTEND_DEFAULT_TOPIC_ID；按实际 socket IP 隔离 15 分钟活跃会话，并校验 conversationId 的 IP 归属。首次同源请求会签发 HttpOnly 查询会话。',
           security: [{ BackendApiKey: [] }, { BrowserSession: [] }],
           requestBody: {
             required: true,
@@ -514,12 +514,17 @@ export function createOpenApiDocument(config) {
         ChatResponse: {
           type: 'object',
           additionalProperties: false,
-          required: ['status', 'topicId', 'answer', 'citations', 'traceId'],
+          required: ['status', 'topicId', 'answer', 'citations', 'intent', 'branch', 'needTransferHuman', 'traceId'],
           properties: {
             status: { enum: ['ANSWERED', 'NO_RELIABLE_EVIDENCE', 'BLOCKED'] },
             topicId: { type: 'string', pattern: '^topic_[0-9a-f]{32}$' },
             answer: { type: 'string' },
             citations: { type: 'array', maxItems: 5, items: { $ref: '#/components/schemas/Citation' } },
+            conversationId: { type: 'string', pattern: '^session_[0-9a-f]{32}$' },
+            intent: { enum: ['BLOCKED', 'SMALL_TALK', 'FOLLOW_UP', 'KNOWLEDGE_QUERY'] },
+            branch: { enum: ['9-1', '9-2', '9-3'] },
+            needTransferHuman: { type: 'boolean' },
+            contextUsed: { type: 'boolean' },
             traceId: { type: 'string' }
           }
         },
@@ -538,7 +543,7 @@ export function createOpenApiDocument(config) {
                 'RAG_NO_TEXT_CONTENT', 'RAG_CAPACITY_LIMIT', 'RAG_JOB_FAILED', 'RAG_JOB_NOT_FOUND',
                 'RAG_MODEL_UNAVAILABLE', 'RAG_MODEL_OUTPUT_INVALID', 'RAG_MODEL_RATE_LIMITED', 'RAG_BUSY',
                 'RAG_BLOCKED_INPUT', 'RAG_NOT_READY', 'RAG_ORIGIN_FORBIDDEN', 'RAG_NETWORK_FORBIDDEN', 'RAG_ROUTE_NOT_FOUND',
-                'RAG_REQUEST_TOO_LARGE', 'RAG_INTERNAL_ERROR'
+                'RAG_DATABASE_UNAVAILABLE', 'RAG_REQUEST_TOO_LARGE', 'RAG_INTERNAL_ERROR'
               ]
             },
             message: { type: 'string' },
