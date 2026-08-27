@@ -177,7 +177,12 @@ export function createAuthToolkit(config, { now = () => Date.now() } = {}) {
     try {
       const token = parseCookies(request.get('Cookie'))[COOKIE_NAME];
       if (token) {
-        authenticateBrowserSession(request);
+        try {
+          authenticateBrowserSession(request);
+        } catch (error) {
+          if (error?.errorCode !== 'RAG_UNAUTHORIZED') throw error;
+          establishBrowserSession(request, response);
+        }
       } else {
         establishBrowserSession(request, response);
       }

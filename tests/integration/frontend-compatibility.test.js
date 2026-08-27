@@ -8,7 +8,24 @@ import request from 'supertest';
 import { APP_ROOT, createRuntime } from '../../backend/src/app.js';
 import { API_KEY, foundationEnv } from '../helpers/foundation.js';
 
-test('the frozen 8642444 frontend request shape works without a frontend change', async (t) => {
+test('development startup serves the built frontend at the root path', async (t) => {
+  const dataDir = mkdtempSync(path.join(os.tmpdir(), 'rag-frontend-root-'));
+  const runtime = await createRuntime({
+    appRoot: APP_ROOT,
+    env: foundationEnv({ DATA_DIR: dataDir, NODE_ENV: 'development' })
+  });
+  t.after(async () => {
+    await runtime.close();
+    rmSync(dataDir, { recursive: true, force: true });
+  });
+  await runtime.initialize();
+
+  const page = await request(runtime.app).get('/').set('Accept', 'text/html').expect(200);
+  assert.match(page.headers['content-type'], /^text\/html/);
+  assert.match(page.text, /id="root"/);
+});
+
+test('the compatibility request shape continues to work for the FAQ-enabled frontend', async (t) => {
   const dataDir = mkdtempSync(path.join(os.tmpdir(), 'rag-frontend-compat-'));
   const topicId = `topic_${'c'.repeat(32)}`;
   const runtime = await createRuntime({
@@ -22,6 +39,7 @@ test('the frozen 8642444 frontend request shape works without a frontend change'
   await runtime.initialize();
 
   const received = [];
+  runtime.app.locals.faqService = null;
   runtime.app.locals.answerService = {
     async answer(input) {
       received.push(input);
@@ -73,4 +91,11 @@ test('the frozen 8642444 frontend request shape works without a frontend change'
     .set('X-API-Key', API_KEY)
     .send({ topicId, question: '后端可以调用版本化接口' })
     .expect(200);
+
+  const renewed = await api.post('/api/chat')
+    .set('Origin', 'http://localhost:5173')
+    .set('Cookie', 'rag_query_session=expired-or-invalid')
+    .send({ message: '旧浏览器会话应自动恢复' })
+    .expect(200);
+  assert.match(renewed.headers['set-cookie'][0], /rag_query_session=/);
 });

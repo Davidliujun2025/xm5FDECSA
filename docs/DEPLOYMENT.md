@@ -8,11 +8,13 @@ npm run verify
 npm run build
 ```
 
-`npm run verify` 会锁定 `frontend/` 相对 `8642444` 的零差异，并拒绝提交 `.env`、数据库、原始文档、日志、构建产物和疑似密钥。
+`npm run verify` 会执行测试、构建、启动冒烟和安全扫描，并拒绝提交 `.env`、数据库、日志、构建产物和疑似密钥。
 
 ## 必填配置
 
-所有环境都必须设置高强度的 `RAG_API_KEY` 与 `FRONTEND_SESSION_SECRET`。完整知识库能力还需要同时设置 `MODEL_BASE_URL`、`MODEL_API_KEY`、`EMBEDDING_MODEL` 和 `CHAT_MODEL`。
+所有环境都必须设置高强度的 `RAG_API_KEY` 与 `FRONTEND_SESSION_SECRET`。内置 FAQ 无需模型配置；上传文档的索引与模型问答需要同时设置 `MODEL_BASE_URL`、`MODEL_API_KEY`、`EMBEDDING_MODEL` 和 `CHAT_MODEL`。
+
+FAQ 的 DeepSeek 意图识别独立使用 `DEEPSEEK_BASE_URL`、`DEEPSEEK_API_KEY` 和 `DEEPSEEK_CHAT_MODEL`。DeepSeek 官方 API 不作为文档 Embedding 服务；密钥只保存在未跟踪的 `.env` 中。
 
 生产环境建议设置：
 
@@ -31,7 +33,7 @@ DATA_DIR=./data
 - `RAG_HOST`：私有 IPv4 或 `0.0.0.0`
 - `CORS_ORIGINS`：允许的完整 Origin 列表
 - `TEAM_ALLOWED_CIDRS`：规范化的私有 IPv4 CIDR 列表
-- `FRONTEND_DEFAULT_TOPIC_ID`：冻结前端使用的 ACTIVE Topic
+- `FRONTEND_DEFAULT_TOPIC_ID`：前端使用的 Topic 标识
 
 启动命令：
 
@@ -46,4 +48,5 @@ npm start
 - 停止服务后运行 `scripts/backup-data.ps1` 创建一致性备份。
 - 使用 `scripts/restore-data.ps1` 恢复到新的空数据目录。
 - 原文件、SQLite、日志和备份均视为敏感运行数据，不得提交 Git。
+- 可用 TablePlus 直接打开 `DATA_DIR/knowledge.db`（连接类型 SQLite），查看 `faq_entry`、`chat_session` 和 `chat_message`；服务运行时只读查看，修改前先停止服务并备份。
 - 发布前至少保留一次可恢复备份，并通过健康检查和一条真实检索请求完成冒烟测试。

@@ -15,6 +15,7 @@ export const CHAT_BRANCH = Object.freeze({
 
 const SMALL_TALK_PATTERN = /^(?:你好|您好|嗨|hello|hi|谢谢|感谢|再见|在吗|你是谁)[！!。.，,？?\s]*$/iu;
 const FOLLOW_UP_PATTERN = /^(?:那|那么|这个|那个|它|上述|前面|还有|然后|具体|费用呢|怎么做|为什么|多久|哪里|何时|呢|吗|？|\?)/u;
+const SHORT_FOLLOW_UP_PATTERN = /^(?:费用|价格|条件|流程|时间|题型|有效期|续证|课程|教材|平台|报名|报考|考试|证书)(?:呢|吗|多少|是什么|怎么办|怎么做)?[？?]?$/u;
 
 export function recognizeChatIntent(question, history = []) {
   if (blockedInputReason(question)) {
@@ -23,7 +24,7 @@ export function recognizeChatIntent(question, history = []) {
   if (SMALL_TALK_PATTERN.test(question.trim())) {
     return CHAT_INTENT.SMALL_TALK;
   }
-  if (history.length > 0 && (FOLLOW_UP_PATTERN.test(question.trim()) || question.trim().length <= 12)) {
+  if (history.length > 0 && (FOLLOW_UP_PATTERN.test(question.trim()) || SHORT_FOLLOW_UP_PATTERN.test(question.trim()))) {
     return CHAT_INTENT.FOLLOW_UP;
   }
   return CHAT_INTENT.KNOWLEDGE_QUERY;
@@ -56,6 +57,28 @@ export function buildContextualQuestion(question, history, maxChars = 4000) {
     used += lineLength;
   }
   return `${prefix}${selected.join('\n')}${suffix}`;
+}
+
+export function latestCompletedTurn(history) {
+  if (!Array.isArray(history) || history.length === 0) return Object.freeze([]);
+  for (let assistantIndex = history.length - 1; assistantIndex >= 0; assistantIndex -= 1) {
+    if (history[assistantIndex].role !== 'ASSISTANT') continue;
+    for (let userIndex = assistantIndex - 1; userIndex >= 0; userIndex -= 1) {
+      if (history[userIndex].role === 'USER') {
+        return Object.freeze([history[userIndex], history[assistantIndex]]);
+      }
+    }
+  }
+  return Object.freeze([]);
+}
+
+export function selectedFaqFromHistory(question, history) {
+  const match = /^\s*([1-8])\s*[.、]?\s*$/u.exec(question);
+  if (!match || !Array.isArray(history)) return null;
+  const assistant = [...history].reverse().find((message) => message.role === 'ASSISTANT');
+  const candidates = assistant?.metadata?.candidates;
+  const selected = Array.isArray(candidates) ? candidates[Number(match[1]) - 1] : null;
+  return typeof selected?.faqId === 'string' ? selected.faqId : null;
 }
 
 export function inferChatBranch(result) {

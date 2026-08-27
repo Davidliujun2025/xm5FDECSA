@@ -59,7 +59,7 @@ async function main() {
     if (liveBody.status !== 'UP' || readyBody.status !== 'READY' || openApiBody.openapi !== '3.1.0' || !frontendHtml.includes('id="root"')) {
       throw new Error('smoke response content mismatch');
     }
-    process.stdout.write(`${JSON.stringify({ status: 'START_SMOKE_PASSED', apiOperations: 16, frontendBaseline: '8642444' })}\n`);
+    process.stdout.write(`${JSON.stringify({ status: 'START_SMOKE_PASSED', apiOperations: 16, frontendMode: 'faq-candidates' })}\n`);
   } finally {
     await running?.close();
     await rm(dataDir, { recursive: true, force: true });

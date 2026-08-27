@@ -13,6 +13,7 @@ function mapMessage(row) {
     content: row.content,
     intent: row.intent,
     branch: row.branch,
+    metadata: row.metadata ? JSON.parse(row.metadata) : {},
     createdAt: row.created_at
   };
 }
@@ -58,7 +59,7 @@ export class ChatHistoryRepository {
         UPDATE chat_session SET last_active_at = ? WHERE id = ? AND status = 'ACTIVE'
       `),
       recentMessages: database.prepare(`
-        SELECT id, role, content, intent, branch, created_at
+        SELECT id, role, content, intent, branch, metadata, created_at
         FROM chat_message
         WHERE session_id = ?
         ORDER BY sequence DESC
@@ -133,7 +134,7 @@ export class ChatHistoryRepository {
       return [];
     }
     return this.database.prepare(`
-      SELECT id, role, content, intent, branch, created_at
+      SELECT id, role, content, intent, branch, metadata, created_at
       FROM chat_message WHERE session_id = ? ORDER BY sequence ASC
     `).all(sessionId).map(mapMessage);
   }

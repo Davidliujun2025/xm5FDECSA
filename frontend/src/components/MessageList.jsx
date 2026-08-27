@@ -23,7 +23,7 @@ function formatTime(isoString) {
   });
 }
 
-export default function MessageList({ messages, isTyping, listRef }) {
+export default function MessageList({ messages, isTyping, listRef, onCandidateSelect }) {
   useEffect(() => {
     if (listRef.current) {
       listRef.current.scrollTop = listRef.current.scrollHeight;
@@ -46,6 +46,22 @@ export default function MessageList({ messages, isTyping, listRef }) {
                 ? <WelcomeMessage />
                 : renderMessageContent(message.content)}
             </div>
+            {message.candidates?.length > 0 && (
+              <div className="candidate-list" aria-label="候选问题">
+                {message.candidates.map((candidate, index) => (
+                  <button
+                    className="candidate-button"
+                    type="button"
+                    key={candidate.faqId}
+                    disabled={isTyping}
+                    onClick={() => onCandidateSelect(candidate)}
+                  >
+                    <span className="candidate-number">{index + 1}</span>
+                    <span>{candidate.question}</span>
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       ))}

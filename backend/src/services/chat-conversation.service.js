@@ -1,6 +1,7 @@
 import {
   buildContextualQuestion,
   inferChatBranch,
+  latestCompletedTurn,
   recognizeChatIntent
 } from '../domain/chat-workflow.js';
 
@@ -24,11 +25,13 @@ export class ChatConversationService {
       cutoff,
       historyMessageLimit: this.config.chatHistoryMessageLimit
     });
+    const recentHistory = latestCompletedTurn(stored.history);
     return {
       ...stored,
-      hasRecentHistory: stored.history.length > 0,
-      intent: recognizeChatIntent(question, stored.history),
-      contextualQuestion: buildContextualQuestion(question, stored.history)
+      recentHistory,
+      hasRecentHistory: recentHistory.length > 0,
+      intent: recognizeChatIntent(question, recentHistory),
+      contextualQuestion: buildContextualQuestion(question, recentHistory)
     };
   }
 
@@ -55,7 +58,12 @@ export class ChatConversationService {
         citations: (normalized.citations ?? []).map((citation) => ({
           citationId: citation.citationId,
           documentId: citation.documentId
-        }))
+        })),
+        candidates: normalized.candidates ?? [],
+        responseType: normalized.responseType ?? null,
+        intentProvider: normalized.intentProvider ?? 'LOCAL',
+        matchedFaqId: normalized.matchedFaqId ?? null,
+        matchedQuestion: normalized.matchedQuestion ?? null
       },
       now: this.clock().toISOString()
     });

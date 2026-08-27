@@ -18,7 +18,8 @@ const compatibilitySchema = {
   required: ['message'],
   properties: {
     message: { type: 'string', minLength: 1, maxLength: 4000 },
-    conversationId: { type: 'string', minLength: 1, maxLength: 128 }
+    conversationId: { type: 'string', minLength: 1, maxLength: 128 },
+    selectedFaqId: { type: 'string', pattern: '^faq_[0-9a-f]{32}$' }
   }
 };
 const validateVersioned = ajv.compile(versionedSchema);
@@ -72,6 +73,7 @@ export function validateCompatibilityChatRequest(body, defaultTopicId) {
   return {
     topicId: defaultTopicId,
     question: normalizeQuestion(body.message),
-    requestedSessionId: body.conversationId
+    requestedSessionId: body.conversationId,
+    selectedFaqId: body.selectedFaqId
   };
 }

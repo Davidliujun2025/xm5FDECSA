@@ -288,8 +288,8 @@ export function createOpenApiDocument(config) {
       '/api/chat': {
         post: {
           operationId: 'answerDefaultTopicQuestion',
-          summary: '带 IP 会话历史的前端严格问答兼容入口',
-          description: '服务端绑定 FRONTEND_DEFAULT_TOPIC_ID；按实际 socket IP 隔离 15 分钟活跃会话，并校验 conversationId 的 IP 归属。首次同源请求会签发 HttpOnly 查询会话。',
+          summary: '带 IP 会话历史的结构化 FAQ 问答入口',
+          description: '按实际 socket IP 隔离 15 分钟活跃会话；使用最近一轮问答识别 PMP、ACP、PBA、FDE 业务意图。单条命中直接返回标准答案，多条命中返回可选择的候选问题。',
           security: [{ BackendApiKey: [] }, { BrowserSession: [] }],
           requestBody: {
             required: true,
@@ -496,7 +496,8 @@ export function createOpenApiDocument(config) {
           required: ['message'],
           properties: {
             message: { type: 'string', minLength: 1, maxLength: 4000 },
-            conversationId: { type: 'string', minLength: 1, maxLength: 128 }
+            conversationId: { type: 'string', minLength: 1, maxLength: 128 },
+            selectedFaqId: { type: 'string', pattern: '^faq_[0-9a-f]{32}$' }
           }
         },
         Citation: {
@@ -525,6 +526,24 @@ export function createOpenApiDocument(config) {
             branch: { enum: ['9-1', '9-2', '9-3'] },
             needTransferHuman: { type: 'boolean' },
             contextUsed: { type: 'boolean' },
+            responseType: { enum: ['ANSWER', 'CANDIDATES', 'FALLBACK', 'TRANSFER', 'BLOCKED'] },
+            intentProvider: { enum: ['LOCAL', 'DEEPSEEK'] },
+            candidates: {
+              type: 'array',
+              maxItems: config.faqMaxCandidates,
+              items: {
+                type: 'object',
+                additionalProperties: false,
+                required: ['faqId', 'domain', 'question'],
+                properties: {
+                  faqId: { type: 'string', pattern: '^faq_[0-9a-f]{32}$' },
+                  domain: { enum: ['PMP', 'ACP', 'PBA', 'FDE'] },
+                  question: { type: 'string', minLength: 1 }
+                }
+              }
+            },
+            matchedFaqId: { type: 'string', pattern: '^faq_[0-9a-f]{32}$' },
+            matchedQuestion: { type: 'string', minLength: 1 },
             traceId: { type: 'string' }
           }
         },
@@ -543,7 +562,7 @@ export function createOpenApiDocument(config) {
                 'RAG_NO_TEXT_CONTENT', 'RAG_CAPACITY_LIMIT', 'RAG_JOB_FAILED', 'RAG_JOB_NOT_FOUND',
                 'RAG_MODEL_UNAVAILABLE', 'RAG_MODEL_OUTPUT_INVALID', 'RAG_MODEL_RATE_LIMITED', 'RAG_BUSY',
                 'RAG_BLOCKED_INPUT', 'RAG_NOT_READY', 'RAG_ORIGIN_FORBIDDEN', 'RAG_NETWORK_FORBIDDEN', 'RAG_ROUTE_NOT_FOUND',
-                'RAG_DATABASE_UNAVAILABLE', 'RAG_REQUEST_TOO_LARGE', 'RAG_INTERNAL_ERROR'
+                'RAG_DATABASE_UNAVAILABLE', 'RAG_FAQ_SOURCE_INVALID', 'RAG_REQUEST_TOO_LARGE', 'RAG_INTERNAL_ERROR'
               ]
             },
             message: { type: 'string' },

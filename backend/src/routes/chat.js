@@ -3,6 +3,7 @@ import express from 'express';
 import { answerServiceFrom } from './rag-v1/chat.js';
 import { validateCompatibilityChatRequest } from './rag-v1/chat.schema.js';
 import { AppError } from '../domain/errors.js';
+import { selectedFaqFromHistory } from '../domain/chat-workflow.js';
 import { clientIpFromRequest } from '../utils/client-ip.js';
 
 function asyncHandler(action) {
@@ -12,7 +13,7 @@ function asyncHandler(action) {
 export function createCompatibilityChatRouter({ auth, config }) {
   const router = express.Router();
   router.post('/', auth.requireFrontendQueryAccess, asyncHandler(async (request, response) => {
-    const { requestedSessionId, ...input } = validateCompatibilityChatRequest(
+    const { requestedSessionId, selectedFaqId, ...input } = validateCompatibilityChatRequest(
       request.body,
       config.frontendDefaultTopicId
     );
@@ -29,10 +30,14 @@ export function createCompatibilityChatRouter({ auth, config }) {
       requestedSessionId,
       ...input
     });
-    const answer = await answerServiceFrom(request).answer({
+    const faqService = request.app.locals.faqService;
+    const answerProvider = faqService?.hasEntries() ? faqService : answerServiceFrom(request);
+    const resolvedFaqId = selectedFaqId ?? selectedFaqFromHistory(input.question, turn.recentHistory);
+    const answer = await answerProvider.answer({
       ...input,
       contextualQuestion: turn.contextualQuestion,
-      intent: turn.intent
+      intent: turn.intent,
+      ...(resolvedFaqId ? { selectedFaqId: resolvedFaqId } : {})
     });
     const result = conversationService.complete(turn, answer);
     response.status(200).json({ ...result, traceId: request.traceId });

@@ -4,6 +4,8 @@ import Ajv from 'ajv';
 
 import { AppError } from './domain/errors.js';
 
+export const DEFAULT_FAQ_TOPIC_ID = `topic_${'0'.repeat(32)}`;
+
 const ajv = new Ajv({ allErrors: true, coerceTypes: true });
 const baseSchema = {
   type: 'object',
@@ -29,6 +31,9 @@ const baseSchema = {
     MODEL_API_KEY: { type: 'string' },
     EMBEDDING_MODEL: { type: 'string' },
     CHAT_MODEL: { type: 'string' },
+    DEEPSEEK_BASE_URL: { type: 'string' },
+    DEEPSEEK_API_KEY: { type: 'string' },
+    DEEPSEEK_CHAT_MODEL: { type: 'string' },
     FIXED_REFUSAL_TEXT: { type: 'string', minLength: 1, maxLength: 500 },
     MODEL_CONNECT_TIMEOUT_SECONDS: { type: 'integer', minimum: 1, maximum: 60 },
     MODEL_TOTAL_TIMEOUT_SECONDS: { type: 'integer', minimum: 1, maximum: 300 },
@@ -41,6 +46,9 @@ const baseSchema = {
     CHAT_SESSION_TIMEOUT_MINUTES: { type: 'integer', minimum: 1, maximum: 1440 },
     CHAT_HISTORY_TURNS: { type: 'integer', minimum: 1, maximum: 20 },
     HUMAN_TRANSFER_TEXT: { type: 'string', minLength: 1, maxLength: 500 },
+    FAQ_MATCH_THRESHOLD: { type: 'number', minimum: 0, maximum: 1 },
+    FAQ_RELATED_THRESHOLD: { type: 'number', minimum: 0, maximum: 1 },
+    FAQ_MAX_CANDIDATES: { type: 'integer', minimum: 2, maximum: 8 },
     MAX_CONCURRENT_REQUESTS: { type: 'integer', minimum: 1, maximum: 3 }
   }
 };
@@ -60,6 +68,10 @@ function validateSecret(name, value) {
   if (Buffer.byteLength(value, 'utf8') < 32 || new Set(value).size < 8 || PLACEHOLDER_PATTERN.test(value)) {
     failConfig(`${name} 必须是至少 32 字节的高强度随机值`, { field: name });
   }
+}
+
+function decodeConfiguredText(value) {
+  return value.replaceAll('\\n', '\n').trim();
 }
 
 function parseOrigins(raw) {
@@ -173,6 +185,38 @@ function parseModelConfig(values) {
   };
 }
 
+function parseDeepSeekConfig(values) {
+  const apiKey = values.DEEPSEEK_API_KEY.trim();
+  if (!apiKey) {
+    return {
+      configured: false,
+      baseUrl: null,
+      apiKey: null,
+      model: null,
+      connectTimeoutMs: Number(values.MODEL_CONNECT_TIMEOUT_SECONDS) * 1000,
+      totalTimeoutMs: Number(values.MODEL_TOTAL_TIMEOUT_SECONDS) * 1000
+    };
+  }
+  const baseUrl = values.DEEPSEEK_BASE_URL.trim();
+  let parsed;
+  try {
+    parsed = new URL(baseUrl);
+  } catch {
+    failConfig('DEEPSEEK_BASE_URL 格式非法', { field: 'DEEPSEEK_BASE_URL' });
+  }
+  if (parsed.protocol !== 'https:' || parsed.username || parsed.password || parsed.search || parsed.hash) {
+    failConfig('DEEPSEEK_BASE_URL 必须是无凭据、查询参数和片段的 HTTPS 地址', { field: 'DEEPSEEK_BASE_URL' });
+  }
+  return {
+    configured: true,
+    baseUrl,
+    apiKey,
+    model: values.DEEPSEEK_CHAT_MODEL.trim(),
+    connectTimeoutMs: Number(values.MODEL_CONNECT_TIMEOUT_SECONDS) * 1000,
+    totalTimeoutMs: Number(values.MODEL_TOTAL_TIMEOUT_SECONDS) * 1000
+  };
+}
+
 export function loadConfig(env = process.env, { appRoot = process.cwd() } = {}) {
   const values = {
     ...env,
@@ -193,7 +237,10 @@ export function loadConfig(env = process.env, { appRoot = process.cwd() } = {}) 
     MODEL_API_KEY: env.MODEL_API_KEY || '',
     EMBEDDING_MODEL: env.EMBEDDING_MODEL || '',
     CHAT_MODEL: env.CHAT_MODEL || '',
-    FIXED_REFUSAL_TEXT: env.FIXED_REFUSAL_TEXT || '知识库中未找到可靠依据，暂时无法回答该问题。',
+    DEEPSEEK_BASE_URL: env.DEEPSEEK_BASE_URL || 'https://api.deepseek.com',
+    DEEPSEEK_API_KEY: env.DEEPSEEK_API_KEY || '',
+    DEEPSEEK_CHAT_MODEL: env.DEEPSEEK_CHAT_MODEL || 'deepseek-v4-flash',
+    FIXED_REFUSAL_TEXT: env.FIXED_REFUSAL_TEXT || '抱歉，目前我没能理解您的问题，请您用文字清晰描述具体需求，或者您可回复您想要咨询的问题对应的数字。我可以为您解答：\n1、PMP®课程内容、面授/远程班选择\n2、报考条件、考试报名流程\n3、培训费用、教材及学习平台\n4、证书续证与PDU积累',
     MODEL_CONNECT_TIMEOUT_SECONDS: env.MODEL_CONNECT_TIMEOUT_SECONDS || '5',
     MODEL_TOTAL_TIMEOUT_SECONDS: env.MODEL_TOTAL_TIMEOUT_SECONDS || '30',
     CHUNK_TARGET_CHARS: env.CHUNK_TARGET_CHARS || '1000',
@@ -203,8 +250,11 @@ export function loadConfig(env = process.env, { appRoot = process.cwd() } = {}) 
     EVIDENCE_THRESHOLD: env.EVIDENCE_THRESHOLD || '0.45',
     RELATED_EVIDENCE_THRESHOLD: env.RELATED_EVIDENCE_THRESHOLD || '0.25',
     CHAT_SESSION_TIMEOUT_MINUTES: env.CHAT_SESSION_TIMEOUT_MINUTES || '15',
-    CHAT_HISTORY_TURNS: env.CHAT_HISTORY_TURNS || '6',
-    HUMAN_TRANSFER_TEXT: env.HUMAN_TRANSFER_TEXT || '暂时没有找到准确答案，已为您转接人工客服。',
+    CHAT_HISTORY_TURNS: env.CHAT_HISTORY_TURNS || '1',
+    HUMAN_TRANSFER_TEXT: env.HUMAN_TRANSFER_TEXT || '您咨询的问题需要专业顾问为您详细解答，已为您转接人工服务通道。\n请您通过以下方式联系我们：\n📞 服务热线：400-638-0878（24小时咨询）\n💬 在线客服：点击页面右侧“在线交谈”按钮，与人工客服实时沟通\n📱 QQ咨询：王老师 1851140832 | 于老师 153762324 | 刘老师 780578332',
+    FAQ_MATCH_THRESHOLD: env.FAQ_MATCH_THRESHOLD || '0.78',
+    FAQ_RELATED_THRESHOLD: env.FAQ_RELATED_THRESHOLD || '0.25',
+    FAQ_MAX_CANDIDATES: env.FAQ_MAX_CANDIDATES || '5',
     MAX_CONCURRENT_REQUESTS: env.MAX_CONCURRENT_REQUESTS || '3'
   };
 
@@ -218,15 +268,21 @@ export function loadConfig(env = process.env, { appRoot = process.cwd() } = {}) 
   validateSecret('FRONTEND_SESSION_SECRET', values.FRONTEND_SESSION_SECRET);
   const corsOrigins = parseOrigins(values.CORS_ORIGINS);
   const model = parseModelConfig(values);
-  if (!values.FIXED_REFUSAL_TEXT.trim()) {
+  const deepSeek = parseDeepSeekConfig(values);
+  if (!decodeConfiguredText(values.FIXED_REFUSAL_TEXT)) {
     failConfig('FIXED_REFUSAL_TEXT 不得为空', { field: 'FIXED_REFUSAL_TEXT' });
   }
-  if (!values.HUMAN_TRANSFER_TEXT.trim()) {
+  if (!decodeConfiguredText(values.HUMAN_TRANSFER_TEXT)) {
     failConfig('HUMAN_TRANSFER_TEXT 不得为空', { field: 'HUMAN_TRANSFER_TEXT' });
   }
   if (Number(values.RELATED_EVIDENCE_THRESHOLD) > Number(values.EVIDENCE_THRESHOLD)) {
     failConfig('RELATED_EVIDENCE_THRESHOLD 不得大于 EVIDENCE_THRESHOLD', {
       field: 'RELATED_EVIDENCE_THRESHOLD'
+    });
+  }
+  if (Number(values.FAQ_RELATED_THRESHOLD) > Number(values.FAQ_MATCH_THRESHOLD)) {
+    failConfig('FAQ_RELATED_THRESHOLD 不得大于 FAQ_MATCH_THRESHOLD', {
+      field: 'FAQ_RELATED_THRESHOLD'
     });
   }
   let teamAllowedCidrs = [];
@@ -260,14 +316,16 @@ export function loadConfig(env = process.env, { appRoot = process.cwd() } = {}) 
     apiKey: values.RAG_API_KEY,
     sessionSecret: values.FRONTEND_SESSION_SECRET,
     sessionTtlSeconds: Number(values.FRONTEND_SESSION_TTL_SECONDS),
-    frontendDefaultTopicId: values.FRONTEND_DEFAULT_TOPIC_ID?.trim() || null,
+    frontendDefaultTopicId: values.FRONTEND_DEFAULT_TOPIC_ID?.trim()
+      || (values.RUN_PROFILE === 'local' ? DEFAULT_FAQ_TOPIC_ID : null),
     frontendDistDir: path.resolve(appRoot, values.FRONTEND_DIST_DIR || './frontend/dist'),
-    fixedRefusalText: values.FIXED_REFUSAL_TEXT.trim(),
-    humanTransferText: values.HUMAN_TRANSFER_TEXT.trim(),
+    fixedRefusalText: decodeConfiguredText(values.FIXED_REFUSAL_TEXT),
+    humanTransferText: decodeConfiguredText(values.HUMAN_TRANSFER_TEXT),
     corsOrigins,
     teamAllowedCidrs,
     dataDir: path.resolve(appRoot, values.DATA_DIR),
     migrationsDir: path.resolve(appRoot, 'database/migrations'),
+    faqSourceDir: path.resolve(appRoot, 'knowledge/faq'),
     maxFileBytes: Number(values.MAX_FILE_MB) * 1024 * 1024,
     maxTotalFiles: Number(values.MAX_TOTAL_FILES),
     maxTotalStorageBytes: Number(values.MAX_TOTAL_STORAGE_GB) * 1024 * 1024 * 1024,
@@ -279,12 +337,16 @@ export function loadConfig(env = process.env, { appRoot = process.cwd() } = {}) 
     relatedEvidenceThreshold: Number(values.RELATED_EVIDENCE_THRESHOLD),
     chatSessionTimeoutMs: Number(values.CHAT_SESSION_TIMEOUT_MINUTES) * 60 * 1000,
     chatHistoryMessageLimit: Number(values.CHAT_HISTORY_TURNS) * 2,
+    faqMatchThreshold: Number(values.FAQ_MATCH_THRESHOLD),
+    faqRelatedThreshold: Number(values.FAQ_RELATED_THRESHOLD),
+    faqMaxCandidates: Number(values.FAQ_MAX_CANDIDATES),
     chunk: Object.freeze({
       minChars: 800,
       targetChars: Number(values.CHUNK_TARGET_CHARS),
       maxChars: 1200,
       overlapChars: Number(values.CHUNK_OVERLAP_CHARS)
     }),
-    model: Object.freeze(model)
+    model: Object.freeze(model),
+    deepSeek: Object.freeze(deepSeek)
   });
 }

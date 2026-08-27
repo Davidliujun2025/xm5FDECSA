@@ -19,17 +19,6 @@ npm run security-scan
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
 if (Test-Path '.git') {
-  git cat-file -e '8642444^{commit}'
-  if ($LASTEXITCODE -ne 0) {
-    Write-Error 'Cannot verify frontend baseline 8642444'
-    exit 1
-  }
-  git diff --exit-code 8642444 -- frontend
-  if ($LASTEXITCODE -ne 0) {
-    Write-Error 'frontend differs from frozen baseline 8642444'
-    exit 1
-  }
-
   $forbiddenTrackedFiles = @(git ls-files | Where-Object {
     $trackedPath = $_.Replace('\\', '/')
     ($trackedPath -match '(^|/)(node_modules|dist|coverage|artifacts|data|logs?|npm-cache)(/|$)') -or

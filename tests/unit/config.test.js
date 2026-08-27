@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { loadConfig } from '../../backend/src/config.js';
+import { DEFAULT_FAQ_TOPIC_ID, loadConfig } from '../../backend/src/config.js';
 import { foundationEnv } from '../helpers/foundation.js';
 
 test('local profile is constrained to loopback and resolves portable paths', () => {
@@ -11,6 +11,22 @@ test('local profile is constrained to loopback and resolves portable paths', () 
   assert.match(config.dataDir, /portable-app[\\/]data$/);
   assert.deepEqual(config.corsOrigins, ['http://localhost:5173']);
   assert.equal(config.model.apiKey, null);
+  assert.equal(config.frontendDefaultTopicId, DEFAULT_FAQ_TOPIC_ID);
+  assert.equal(config.chatHistoryMessageLimit, 2);
+  assert.equal(config.faqMatchThreshold, 0.78);
+  assert.equal(config.deepSeek.configured, false);
+});
+
+test('DeepSeek intent configuration is independent from document embeddings', () => {
+  const config = loadConfig(foundationEnv({ DEEPSEEK_API_KEY: 'deepseek-private-key' }));
+  assert.equal(config.deepSeek.configured, true);
+  assert.equal(config.deepSeek.baseUrl, 'https://api.deepseek.com');
+  assert.equal(config.deepSeek.model, 'deepseek-v4-flash');
+  assert.equal(config.model.embeddingConfigured, false);
+  assert.throws(
+    () => loadConfig(foundationEnv({ DEEPSEEK_API_KEY: 'key', DEEPSEEK_BASE_URL: 'http://api.deepseek.com' })),
+    (error) => error.errorCode === 'RAG_CONFIG_INVALID' && error.details.field === 'DEEPSEEK_BASE_URL'
+  );
 });
 
 test('local profile rejects non-loopback listening', () => {
@@ -88,7 +104,7 @@ test('real-model configuration is all-or-none and constrains timeouts and chunk 
   assert.equal(config.evidenceThreshold, 0.45);
   assert.equal(config.relatedEvidenceThreshold, 0.25);
   assert.equal(config.chatSessionTimeoutMs, 15 * 60 * 1000);
-  assert.equal(config.chatHistoryMessageLimit, 12);
+  assert.equal(config.chatHistoryMessageLimit, 2);
   assert.deepEqual(config.chunk, { minChars: 800, targetChars: 1000, maxChars: 1200, overlapChars: 150 });
 });
 
@@ -129,7 +145,8 @@ test('Chat configuration validates model prerequisites, default Topic and refusa
   }));
   assert.equal(config.model.chatConfigured, true);
   assert.equal(config.model.chatModel, 'chat-v1');
-  assert.equal(config.fixedRefusalText, '知识库中未找到可靠依据，暂时无法回答该问题。');
+  assert.match(config.fixedRefusalText, /^抱歉，目前我没能理解您的问题/);
+  assert.match(config.humanTransferText, /400-638-0878/);
 });
 
 test('team profile requires default topic, private binding and allowed CIDRs', () => {
