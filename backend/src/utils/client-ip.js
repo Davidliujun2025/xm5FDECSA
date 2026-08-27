@@ -11,6 +11,12 @@ export function normalizeClientIp(value = '') {
   return net.isIP(address) ? address.toLowerCase() : 'unknown';
 }
 
-export function clientIpFromRequest(request) {
-  return normalizeClientIp(request.socket?.remoteAddress);
+export function clientIpFromRequest(request, { trustLoopbackProxy = false } = {}) {
+  const socketIp = normalizeClientIp(request.socket?.remoteAddress);
+  if (!trustLoopbackProxy || socketIp !== '127.0.0.1') {
+    return socketIp;
+  }
+
+  const forwardedIp = request.get?.('X-Real-IP');
+  return normalizeClientIp(forwardedIp);
 }

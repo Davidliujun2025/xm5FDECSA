@@ -26,7 +26,7 @@ export function createCompatibilityChatRouter({ auth, config }) {
       });
     }
     const turn = conversationService.begin({
-      userIp: clientIpFromRequest(request),
+      userIp: clientIpFromRequest(request, config),
       requestedSessionId,
       ...input
     });

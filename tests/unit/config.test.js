@@ -13,8 +13,14 @@ test('local profile is constrained to loopback and resolves portable paths', () 
   assert.equal(config.model.apiKey, null);
   assert.equal(config.frontendDefaultTopicId, DEFAULT_FAQ_TOPIC_ID);
   assert.equal(config.chatHistoryMessageLimit, 2);
+  assert.equal(config.trustLoopbackProxy, false);
   assert.equal(config.faqMatchThreshold, 0.78);
   assert.equal(config.deepSeek.configured, false);
+});
+
+test('loopback proxy trust is opt-in', () => {
+  const config = loadConfig(foundationEnv({ TRUST_LOOPBACK_PROXY: 'true' }));
+  assert.equal(config.trustLoopbackProxy, true);
 });
 
 test('DeepSeek intent configuration is independent from document embeddings', () => {
