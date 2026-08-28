@@ -31,6 +31,20 @@ test('FAQ service returns the stored answer for one exact hit', async () => {
   assert.equal(result.branch, '9-2');
 });
 
+test('lowered production threshold accepts a close keyword match without cross-domain drift', async () => {
+  const tunedService = new FaqService(repository, {
+    faqMatchThreshold: 0.68,
+    faqRelatedThreshold: 0.18,
+    faqMaxCandidates: 5,
+    fixedRefusalText,
+    humanTransferText
+  });
+  const result = await tunedService.answer({ topicId, question: 'PBA适合哪些人？' });
+  assert.equal(result.responseType, 'ANSWER');
+  assert.equal(result.matchedQuestion, 'PBA认证适合哪些人群？');
+  assert.equal(result.branch, '9-2');
+});
+
 test('FAQ service returns candidates for multiple hits and resolves an explicit choice', async () => {
   const result = await service.answer({ topicId, question: 'PMP考试' });
   assert.equal(result.responseType, 'CANDIDATES');

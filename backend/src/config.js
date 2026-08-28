@@ -254,8 +254,8 @@ export function loadConfig(env = process.env, { appRoot = process.cwd() } = {}) 
     CHAT_SESSION_TIMEOUT_MINUTES: env.CHAT_SESSION_TIMEOUT_MINUTES || '15',
     CHAT_HISTORY_TURNS: env.CHAT_HISTORY_TURNS || '1',
     HUMAN_TRANSFER_TEXT: env.HUMAN_TRANSFER_TEXT || '您咨询的问题需要专业顾问为您详细解答，已为您转接人工服务通道。\n请您通过以下方式联系我们：\n📞 服务热线：400-638-0878（24小时咨询）\n💬 在线客服：点击页面右侧“在线交谈”按钮，与人工客服实时沟通\n📱 QQ咨询：王老师 1851140832 | 于老师 153762324 | 刘老师 780578332',
-    FAQ_MATCH_THRESHOLD: env.FAQ_MATCH_THRESHOLD || '0.78',
-    FAQ_RELATED_THRESHOLD: env.FAQ_RELATED_THRESHOLD || '0.25',
+    FAQ_MATCH_THRESHOLD: env.FAQ_MATCH_THRESHOLD || '0.68',
+    FAQ_RELATED_THRESHOLD: env.FAQ_RELATED_THRESHOLD || '0.18',
     FAQ_MAX_CANDIDATES: env.FAQ_MAX_CANDIDATES || '5',
     MAX_CONCURRENT_REQUESTS: env.MAX_CONCURRENT_REQUESTS || '3'
   };

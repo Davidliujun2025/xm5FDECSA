@@ -14,7 +14,8 @@ test('local profile is constrained to loopback and resolves portable paths', () 
   assert.equal(config.frontendDefaultTopicId, DEFAULT_FAQ_TOPIC_ID);
   assert.equal(config.chatHistoryMessageLimit, 2);
   assert.equal(config.trustLoopbackProxy, false);
-  assert.equal(config.faqMatchThreshold, 0.78);
+  assert.equal(config.faqMatchThreshold, 0.68);
+  assert.equal(config.faqRelatedThreshold, 0.18);
   assert.equal(config.deepSeek.configured, false);
 });
 
