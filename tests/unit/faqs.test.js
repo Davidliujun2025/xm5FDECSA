@@ -39,3 +39,27 @@ test('ranking handles exact, broad, follow-up and related-without-answer queries
   const hotel = rankFaqEntries({ question: 'PMP考试附近酒店', contextualQuestion: 'PMP考试附近酒店', entries });
   assert.ok(hotel.ranked[0].score < 0.78);
 });
+
+test('ranking tolerates simple character transpositions and word-order mistakes', () => {
+  const cases = [
+    ['PMP试考费用', 'PMP', 'PMP考试的费用是多少？'],
+    ['ACP考式费用', 'ACP', 'ACP考试的费用是多少？'],
+    ['ACP考试费永', 'ACP', 'ACP考试的费用是多少？'],
+    ['PBA人群适合哪些认证', 'PBA', 'PBA认证适合哪些人群？'],
+    ['FDE职责核心是什么', 'FDE', 'FDE的核心职责是什么？']
+  ];
+
+  for (const [question, domain, expected] of cases) {
+    const result = rankFaqEntries({ question, contextualQuestion: question, entries });
+    assert.equal(result.ranked[0].entry.domain, domain, question);
+    assert.equal(result.ranked[0].entry.question, expected, question);
+    assert.ok(result.ranked[0].score >= 0.68, `${question}: ${result.ranked[0].score}`);
+  }
+
+  const unrelated = rankFaqEntries({
+    question: 'PMP考试附近酒店',
+    contextualQuestion: 'PMP考试附近酒店',
+    entries
+  });
+  assert.ok(unrelated.ranked[0].score < 0.68);
+});

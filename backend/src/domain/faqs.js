@@ -109,6 +109,26 @@ function ngrams(value, size = 2) {
   return values;
 }
 
+function characterOverlap(query, candidate) {
+  const counts = new Map();
+  for (const character of candidate) {
+    counts.set(character, (counts.get(character) ?? 0) + 1);
+  }
+  let shared = 0;
+  for (const character of query) {
+    const available = counts.get(character) ?? 0;
+    if (available > 0) {
+      shared += 1;
+      counts.set(character, available - 1);
+    }
+  }
+  return {
+    shared,
+    queryCoverage: shared / query.length,
+    dice: (2 * shared) / (query.length + candidate.length)
+  };
+}
+
 export function faqSimilarity(rawQuery, normalizedQuestion) {
   const query = normalizeFaqText(rawQuery);
   const candidate = normalizeFaqText(normalizedQuestion);
@@ -124,10 +144,18 @@ export function faqSimilarity(rawQuery, normalizedQuestion) {
   for (const part of queryParts) {
     if (candidateParts.has(part)) shared += 1;
   }
-  if (shared === 0) return 0;
-  const dice = (2 * shared) / (queryParts.size + candidateParts.size);
-  const queryCoverage = shared / queryParts.size;
-  return Math.min(1, (0.6 * dice) + (0.4 * queryCoverage));
+  const orderedScore = shared === 0
+    ? 0
+    : Math.min(1, (0.6 * ((2 * shared) / (queryParts.size + candidateParts.size)))
+      + (0.4 * (shared / queryParts.size)));
+  const characters = characterOverlap(query, candidate);
+  const reorderedScore = query.length >= 4
+    && characters.shared >= 4
+    && characters.queryCoverage >= 0.8
+    && (Math.min(query.length, candidate.length) / Math.max(query.length, candidate.length)) >= 0.65
+    ? Math.min(0.96, 0.55 + (0.4 * ((0.7 * characters.queryCoverage) + (0.3 * characters.dice))))
+    : 0;
+  return Math.max(orderedScore, reorderedScore);
 }
 
 const DOMAIN_ALIASES = Object.freeze({
