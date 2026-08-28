@@ -40,6 +40,13 @@ function candidatePrompt(candidates) {
     .join('\n')}`;
 }
 
+const FALLBACK_MENU_QUESTIONS = Object.freeze([
+  '我们的培训服务如何帮助客户最大化PMP认证的价值？',
+  'PMP的完整报考流程是怎样的？',
+  'PMP考试的费用是多少？',
+  '通过考试拿到证书后，如何维持证书的有效性？'
+]);
+
 export class FaqService {
   constructor(repository, config, { intentClient = null } = {}) {
     this.repository = repository;
@@ -161,12 +168,19 @@ export class FaqService {
       topicId,
       related ? this.config.humanTransferText : this.config.fixedRefusalText
     );
+    const fallbackCandidates = related
+      ? []
+      : FALLBACK_MENU_QUESTIONS
+        .map((menuQuestion) => this.entries.find((entry) => entry.question === menuQuestion))
+        .filter(Boolean)
+        .map(publicCandidate);
     return response(topicId, fallback.answer, {
       status: fallback.status,
       intent,
       branch: related ? CHAT_BRANCH.RELATED_WITHOUT_RESULT : CHAT_BRANCH.INVALID,
       needTransferHuman: related,
       responseType: related ? 'TRANSFER' : 'FALLBACK',
+      candidates: fallbackCandidates,
       intentProvider
     });
   }

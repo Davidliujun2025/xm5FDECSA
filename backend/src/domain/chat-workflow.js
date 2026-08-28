@@ -16,6 +16,7 @@ export const CHAT_BRANCH = Object.freeze({
 const SMALL_TALK_PATTERN = /^(?:你好|您好|嗨|hello|hi|谢谢|感谢|再见|在吗|你是谁)[！!。.，,？?\s]*$/iu;
 const FOLLOW_UP_PATTERN = /^(?:那|那么|这个|那个|它|上述|前面|还有|然后|具体|费用呢|怎么做|为什么|多久|哪里|何时|呢|吗|？|\?)/u;
 const SHORT_FOLLOW_UP_PATTERN = /^(?:费用|价格|条件|流程|时间|题型|有效期|续证|课程|教材|平台|报名|报考|考试|证书)(?:呢|吗|多少|是什么|怎么办|怎么做)?[？?]?$/u;
+const NUMERIC_SELECTION_PATTERN = /^\s*([1-8])\s*[.、]?\s*$/u;
 
 export function recognizeChatIntent(question, history = []) {
   if (blockedInputReason(question)) {
@@ -73,7 +74,7 @@ export function latestCompletedTurn(history) {
 }
 
 export function selectedFaqFromHistory(question, history) {
-  const match = /^\s*([1-8])\s*[.、]?\s*$/u.exec(question);
+  const match = NUMERIC_SELECTION_PATTERN.exec(question);
   if (!match || !Array.isArray(history)) return null;
   const assistant = [...history].reverse().find((message) => message.role === 'ASSISTANT');
   const candidates = assistant?.metadata?.candidates;

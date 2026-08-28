@@ -101,10 +101,20 @@ test('FAQ chat routes unrelated and related-without-answer questions to the requ
   assert.equal(cold.body.responseType, 'FALLBACK');
   assert.equal(cold.body.branch, '9-1');
   assert.match(cold.body.answer, /PMP®课程内容/);
+  assert.equal(cold.body.candidates.length, 4);
+
+  const menuSelection = await api.post('/api/chat')
+    .set('Origin', 'http://localhost:5173')
+    .send({ message: '2', conversationId: cold.body.conversationId })
+    .expect(200);
+  assert.notEqual(menuSelection.body.responseType, 'FALLBACK');
+  assert.equal(menuSelection.body.branch, '9-2');
+  assert.equal(menuSelection.body.matchedFaqId, cold.body.candidates[1].faqId);
+  assert.match(menuSelection.body.matchedQuestion, /报考流程/);
 
   const transfer = await api.post('/api/chat')
     .set('Origin', 'http://localhost:5173')
-    .send({ message: 'PMP考试附近酒店', conversationId: cold.body.conversationId })
+    .send({ message: 'PMP考试附近酒店', conversationId: menuSelection.body.conversationId })
     .expect(200);
   assert.equal(transfer.body.responseType, 'TRANSFER');
   assert.equal(transfer.body.branch, '9-3');
@@ -114,5 +124,5 @@ test('FAQ chat routes unrelated and related-without-answer questions to the requ
   const totals = runtime.database.prepare(`
     SELECT role, COUNT(*) AS count FROM chat_message GROUP BY role ORDER BY role
   `).all().map((row) => ({ ...row }));
-  assert.deepEqual(totals, [{ role: 'ASSISTANT', count: 2 }, { role: 'USER', count: 2 }]);
+  assert.deepEqual(totals, [{ role: 'ASSISTANT', count: 3 }, { role: 'USER', count: 3 }]);
 });
