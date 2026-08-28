@@ -95,3 +95,94 @@ test('FAQ service uses DeepSeek intent rewriting and falls back locally on model
   assert.equal(local.intentProvider, 'LOCAL');
   assert.equal(local.responseType, 'ANSWER');
 });
+
+test('FAQ service uses bounded semantic selections for ACP, PBA and FDE paraphrases', async () => {
+  const cases = [
+    {
+      input: 'ACP证书有什么价值？',
+      domain: 'ACP',
+      question: 'ACP认证的核心价值体现在哪里？'
+    },
+    {
+      input: '商业分析师证书需要什么条件？',
+      domain: 'PBA',
+      question: '获取PBA认证需要满足什么条件？'
+    },
+    {
+      input: 'FDE这个岗位主要干什么？',
+      domain: 'FDE',
+      question: 'FDE的核心职责是什么？'
+    }
+  ];
+  const semanticService = new FaqService(repository, {
+    faqMatchThreshold: 0.78,
+    faqRelatedThreshold: 0.25,
+    faqMaxCandidates: 5,
+    fixedRefusalText,
+    humanTransferText
+  }, {
+    intentClient: {
+      async recognize({ question, candidates }) {
+        const current = cases.find((item) => item.input === question);
+        assert.ok(current);
+        assert.ok(candidates.length > 0);
+        assert.ok(candidates.every((candidate) => candidate.domain === current.domain));
+        const selected = candidates.find((candidate) => candidate.question === current.question);
+        assert.ok(selected);
+        return {
+          related: true,
+          domains: [current.domain],
+          standaloneQuestion: question,
+          matchedFaqIds: [selected.id]
+        };
+      }
+    }
+  });
+
+  for (const current of cases) {
+    const result = await semanticService.answer({ topicId, question: current.input });
+    const source = entries.find((entry) => entry.domain === current.domain && entry.question === current.question);
+    assert.equal(result.responseType, 'ANSWER');
+    assert.equal(result.matchedFaqId, source.id);
+    assert.equal(result.answer, source.answer);
+    assert.equal(result.intentProvider, 'DEEPSEEK');
+  }
+});
+
+test('FAQ semantic selection returns bounded candidates and ignores unknown IDs', async () => {
+  const acpEntries = entries.filter((entry) => entry.domain === 'ACP');
+  const semanticService = new FaqService(repository, {
+    faqMatchThreshold: 0.78,
+    faqRelatedThreshold: 0.25,
+    faqMaxCandidates: 2,
+    fixedRefusalText,
+    humanTransferText
+  }, {
+    intentClient: {
+      async recognize({ question }) {
+        if (question === 'ACP考试都能咨询什么？') {
+          return {
+            related: true,
+            domains: ['ACP'],
+            standaloneQuestion: question,
+            matchedFaqIds: [acpEntries[5].id, acpEntries[6].id, acpEntries[7].id]
+          };
+        }
+        return {
+          related: true,
+          domains: ['ACP'],
+          standaloneQuestion: question,
+          matchedFaqIds: [`faq_${'f'.repeat(32)}`]
+        };
+      }
+    }
+  });
+
+  const candidates = await semanticService.answer({ topicId, question: 'ACP考试都能咨询什么？' });
+  assert.equal(candidates.responseType, 'CANDIDATES');
+  assert.deepEqual(candidates.candidates.map((candidate) => candidate.faqId), [acpEntries[5].id, acpEntries[6].id]);
+
+  const unknown = await semanticService.answer({ topicId, question: 'ACP附近有什么酒店？' });
+  assert.equal(unknown.responseType, 'TRANSFER');
+  assert.equal(unknown.branch, '9-3');
+});

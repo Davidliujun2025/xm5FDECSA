@@ -1,11 +1,17 @@
 import { ModelError } from '../../domain/chunks.js';
 
 const DOMAINS = new Set(['PMP', 'ACP', 'PBA', 'FDE']);
+const FAQ_ID_PATTERN = /^faq_[0-9a-f]{32}$/u;
 const SYSTEM_PROMPT = `你是华夏智诚知识库的意图识别器。只进行分类和问题改写，不回答用户问题。
 业务范围：PMP项目管理认证、ACP敏捷认证、PBA商业分析认证、FDE前沿部署工程师。
 结合提供的最近一轮对话上下文，将当前问题改写成可独立理解的问题；无上下文时保持原意。
 related 表示问题是否属于上述任一业务范围。domains 只能包含 PMP、ACP、PBA、FDE。
-必须只输出 JSON，格式示例：{"related":true,"domains":["PMP"],"standaloneQuestion":"PMP考试费用是多少？"}`;
+faqCatalog 是允许匹配的标准问题目录。matchedFaqIds 只能从目录中的 id 选择，最多5个：
+- 一个标准问题能直接回答时只选一个；
+- 用户问题宽泛且确实对应多个标准问题时可选多个；
+- 没有任何标准问题能直接回答时必须返回空数组；
+- 不得仅因主题相关就勉强选择，也不得自行编造 id。
+必须只输出 JSON，格式示例：{"related":true,"domains":["PMP"],"standaloneQuestion":"PMP考试费用是多少？","matchedFaqIds":["faq_0123456789abcdef0123456789abcdef"]}`;
 
 function modelError(message, retryable = false, cause) {
   return new ModelError({
@@ -16,7 +22,7 @@ function modelError(message, retryable = false, cause) {
   });
 }
 
-function parseIntent(payload) {
+function parseIntent(payload, allowedFaqIds = new Set()) {
   const content = payload?.choices?.[0]?.message?.content;
   if (typeof content !== 'string' || !content.trim()) {
     throw new ModelError({ errorCode: 'RAG_MODEL_OUTPUT_INVALID', message: 'DeepSeek 意图响应为空' });
@@ -30,6 +36,11 @@ function parseIntent(payload) {
   const domains = Array.isArray(value.domains)
     ? [...new Set(value.domains.filter((domain) => DOMAINS.has(domain)))]
     : [];
+  const matchedFaqIds = value.related === true && Array.isArray(value.matchedFaqIds)
+    ? [...new Set(value.matchedFaqIds.filter((id) => (
+      typeof id === 'string' && FAQ_ID_PATTERN.test(id) && allowedFaqIds.has(id)
+    )))].slice(0, 5)
+    : [];
   if (typeof value.related !== 'boolean'
     || typeof value.standaloneQuestion !== 'string'
     || !value.standaloneQuestion.trim()
@@ -39,8 +50,30 @@ function parseIntent(payload) {
   return Object.freeze({
     related: value.related,
     domains: Object.freeze(domains),
-    standaloneQuestion: value.standaloneQuestion.trim()
+    standaloneQuestion: value.standaloneQuestion.trim(),
+    matchedFaqIds: Object.freeze(matchedFaqIds)
   });
+}
+
+function faqCatalog(candidates = []) {
+  const seen = new Set();
+  return candidates.flatMap((candidate) => {
+    if (!candidate
+      || typeof candidate.id !== 'string'
+      || !FAQ_ID_PATTERN.test(candidate.id)
+      || seen.has(candidate.id)
+      || !DOMAINS.has(candidate.domain)
+      || typeof candidate.question !== 'string'
+      || !candidate.question.trim()) {
+      return [];
+    }
+    seen.add(candidate.id);
+    return [{
+      id: candidate.id,
+      domain: candidate.domain,
+      question: candidate.question.trim().slice(0, 300)
+    }];
+  }).slice(0, 120);
 }
 
 export class DeepSeekIntentClient {
@@ -56,7 +89,9 @@ export class DeepSeekIntentClient {
     this.fetch = fetchImpl;
   }
 
-  async recognize({ question, contextualQuestion }) {
+  async recognize({ question, contextualQuestion, candidates = [] }) {
+    const catalog = faqCatalog(candidates);
+    const allowedFaqIds = new Set(catalog.map((candidate) => candidate.id));
     const controller = new AbortController();
     const totalTimer = setTimeout(() => controller.abort('total-timeout'), this.totalTimeoutMs);
     const connectTimer = setTimeout(() => controller.abort('connect-timeout'), this.connectTimeoutMs);
@@ -74,11 +109,14 @@ export class DeepSeekIntentClient {
             temperature: 0,
             stream: false,
             thinking: { type: 'disabled' },
-            max_tokens: 300,
+            max_tokens: 400,
             response_format: { type: 'json_object' },
             messages: [
               { role: 'system', content: SYSTEM_PROMPT },
-              { role: 'user', content: `当前问题：${question}\n\n上下文输入：${contextualQuestion}` }
+              {
+                role: 'user',
+                content: `当前问题：${question}\n\n上下文输入：${contextualQuestion}\n\nfaqCatalog：${JSON.stringify(catalog)}`
+              }
             ]
           }),
           signal: controller.signal
@@ -97,7 +135,7 @@ export class DeepSeekIntentClient {
       } catch (error) {
         throw new ModelError({ errorCode: 'RAG_MODEL_OUTPUT_INVALID', message: 'DeepSeek 响应封装不是有效 JSON', cause: error });
       }
-      return parseIntent(payload);
+      return parseIntent(payload, allowedFaqIds);
     } finally {
       clearTimeout(connectTimer);
       clearTimeout(totalTimer);

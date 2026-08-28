@@ -1,6 +1,6 @@
 import { ANSWER_STATUS, blockedInputReason, blockedResponse, refusalResponse } from '../domain/answers.js';
 import { CHAT_BRANCH, CHAT_INTENT } from '../domain/chat-workflow.js';
-import { rankFaqEntries } from '../domain/faqs.js';
+import { detectFaqDomains, rankFaqEntries } from '../domain/faqs.js';
 
 function publicCandidate(entry) {
   return Object.freeze({ faqId: entry.id, domain: entry.domain, question: entry.question });
@@ -83,7 +83,19 @@ export class FaqService {
     let recognizedIntent = null;
     if (this.intentClient) {
       try {
-        recognizedIntent = await this.intentClient.recognize({ question, contextualQuestion });
+        const hintedDomains = detectFaqDomains(contextualQuestion || question, this.entries);
+        const intentCandidates = hintedDomains.size > 0
+          ? this.entries.filter((entry) => hintedDomains.has(entry.domain))
+          : this.entries;
+        recognizedIntent = await this.intentClient.recognize({
+          question,
+          contextualQuestion,
+          candidates: intentCandidates.map((entry) => ({
+            id: entry.id,
+            domain: entry.domain,
+            question: entry.question
+          }))
+        });
       } catch {
         recognizedIntent = null;
       }
@@ -113,6 +125,28 @@ export class FaqService {
         });
       }
       const candidates = closeMatches.map((item) => publicCandidate(item.entry));
+      return response(topicId, candidatePrompt(candidates), {
+        intent,
+        responseType: 'CANDIDATES',
+        candidates,
+        intentProvider
+      });
+    }
+
+    const semanticMatches = (recognizedIntent?.related === true ? recognizedIntent.matchedFaqIds ?? [] : [])
+      .map((faqId) => this.repository.findById(faqId))
+      .filter(Boolean)
+      .slice(0, this.config.faqMaxCandidates);
+    if (semanticMatches.length === 1) {
+      return response(topicId, semanticMatches[0].answer, {
+        intent,
+        responseType: 'ANSWER',
+        matchedEntry: semanticMatches[0],
+        intentProvider
+      });
+    }
+    if (semanticMatches.length > 1) {
+      const candidates = semanticMatches.map(publicCandidate);
       return response(topicId, candidatePrompt(candidates), {
         intent,
         responseType: 'CANDIDATES',
