@@ -48,6 +48,7 @@ export default function MessageList({ messages, isTyping, listRef, onCandidateSe
             </div>
             {message.candidates?.length > 0 && (
               <div className="candidate-list" aria-label="候选问题">
+                <p className="candidate-hint">请直接点击下方问题进行选择</p>
                 {message.candidates.map((candidate, index) => (
                   <button
                     className="candidate-button"
