@@ -189,6 +189,48 @@ body {
   margin-top: 9px;
 }
 
+.transfer-panel {
+  margin-top: 9px;
+  padding: 11px 12px;
+  background: #fff8ec;
+  border: 1px solid #e8c98f;
+  border-radius: 10px;
+}
+
+.transfer-title {
+  color: #6d4b16;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.transfer-copy {
+  margin-top: 3px;
+  color: #75654c;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.transfer-action {
+  display: inline-flex;
+  margin-top: 9px;
+  padding: 7px 10px;
+  color: #ffffff;
+  text-decoration: none;
+  background: #176f72;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.transfer-action:hover {
+  background: #145f62;
+}
+
+.transfer-action:focus-visible {
+  outline: 3px solid rgba(23, 111, 114, 0.2);
+  outline-offset: 2px;
+}
+
 .candidate-hint {
   margin: 0;
   color: #8a857d;

@@ -2,6 +2,7 @@ import { useRef, useState } from 'react';
 import BotAvatar from './BotAvatar';
 import MessageList from './MessageList';
 import InputBar from './InputBar';
+import { ChatResponseError, errorMessageFromResponse, parseChatResponse } from '../chat-response';
 
 const BOT_NAME = '华夏智诚管理学院';
 const WELCOME_MESSAGE = `您好，欢迎来到华夏智诚项目管理学院！👋
@@ -37,8 +38,13 @@ export default function ChatBot() {
   const [requestError, setRequestError] = useState('');
   const messageListRef = useRef(null);
 
-  const appendBotMessage = (content, candidates = [], responseType = 'ANSWER') => {
-    setMessages((current) => [...current, createMessage('bot', content, 'text', { candidates, responseType })]);
+  const appendBotMessage = ({ answer, candidates, needTransferHuman, intent, responseType }) => {
+    setMessages((current) => [...current, createMessage('bot', answer, 'text', {
+      candidates,
+      needTransferHuman,
+      intent,
+      responseType
+    })]);
   };
 
   async function handleSend(message, selectedFaqId) {
@@ -59,24 +65,25 @@ export default function ChatBot() {
       });
 
       if (!response.ok) {
-        throw new Error('Chat API unavailable');
+        throw new Error(await errorMessageFromResponse(response));
       }
 
-      const data = await response.json();
-      if (typeof data.answer !== 'string' || !data.answer.trim()) {
-        throw new Error('Chat API returned an invalid answer');
-      }
-      appendBotMessage(
-        data.answer,
-        data.candidates || [],
-        data.responseType
-      );
+      const data = parseChatResponse(await response.json());
+      appendBotMessage(data);
 
       if (data.conversationId) {
         setConversationId(data.conversationId);
       }
-    } catch {
-      setRequestError('消息发送失败，尚未产生或保存 AI 回复，请检查后端服务后重试。');
+    } catch (error) {
+      if (error instanceof ChatResponseError || error instanceof SyntaxError) {
+        setRequestError(error instanceof ChatResponseError
+          ? error.message
+          : '服务返回的数据格式异常，请稍后重试。');
+      } else if (error instanceof TypeError) {
+        setRequestError('网络连接异常，请检查网络或后端服务后重试。');
+      } else {
+        setRequestError(error.message || '消息发送失败，请稍后重试。');
+      }
     } finally {
       setIsTyping(false);
     }

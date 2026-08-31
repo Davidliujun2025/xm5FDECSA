@@ -1,6 +1,7 @@
 import { Fragment, useEffect } from 'react';
 import BotAvatar from './BotAvatar';
 import WelcomeMessage from './WelcomeMessage';
+import TransferPanel from './TransferPanel';
 
 function renderMessageContent(content) {
   if (!content.includes('**')) {
@@ -46,6 +47,7 @@ export default function MessageList({ messages, isTyping, listRef, onCandidateSe
                 ? <WelcomeMessage />
                 : renderMessageContent(message.content)}
             </div>
+            {message.needTransferHuman === true && <TransferPanel />}
             {message.candidates?.length > 0 && (
               <div className="candidate-list" aria-label="候选问题">
                 <p className="candidate-hint">请点击下方问题，或回复对应数字进行选择</p>
